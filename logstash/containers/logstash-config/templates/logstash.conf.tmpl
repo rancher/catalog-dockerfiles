@@ -1,0 +1,38 @@
+input { {{$inputPfx := "/logstash/config/inputs"}}
+    {{range $dir := ls $inputPfx}}{{$inputdir := printf "%s/%s/*" $inputPfx $dir}}{{range gets $inputdir}}{{$dir}} { {{$data := json .Value}}{{range $key, $value := $data}}
+        {{if (ne $key "")}}{{$key}} => {{end}}{{$value}}{{end}}
+    }
+    {{end}}{{end}}{{$inputCondPfx := printf "%s/conditionals" $inputPfx}}
+    {{if ls $inputCondPfx}}{{range $dir := ls $inputCondPfx}}{{$outputdir := printf "%s/%s/*" $inputCondPfx $dir}}{{$conditionPath := printf "%s/condition" (dir $outputdir)}}{{getv $conditionPath}} { 
+        {{range $rule := lsdir (dir $outputdir)}}{{$rule}} { {{$ruledir := printf "%s/%s/*" (dir $outputdir) $rule}}{{range gets $ruledir}}{{$data := json .Value}}{{range $key, $value := $data}}
+            {{if (ne $key "")}}{{$key}} => {{end}}{{$value}}{{end}}
+        } {{end}}{{end}}
+    }
+    {{end}}{{end}}
+}
+
+{{$filterPfx := "/logstash/config/filters"}}{{if ls $filterPfx }}filter {
+    {{range $dir := ls $filterPfx }}{{$typedir := printf "%s/%s/*" $filterPfx $dir}}{{range gets $typedir}}{{$dir}} { {{$data := json .Value}}{{range $key, $value := $data}}
+        {{if (ne $key "")}}{{$key}} => {{end}}{{$value}}{{end}}
+    }{{end}}
+    {{end}}{{end}}{{$filterCondPfx := printf "%s/conditionals" $filterPfx}}
+    {{if ls $filterCondPfx}}{{range $dir := ls $filterCondPfx}}{{$outputdir := printf "%s/%s/*" $filterCondPfx $dir}}{{$conditionPath := printf "%s/condition" (dir $outputdir)}}{{getv $conditionPath}} { 
+        {{range $rule := lsdir (dir $outputdir)}}{{$rule}} { {{$ruledir := printf "%s/%s/*" (dir $outputdir) $rule}}{{range gets $ruledir}}{{$data := json .Value}}{{range $key, $value := $data}}
+            {{if (ne $key "")}}{{$key}} => {{end}}{{$value}}{{end}}
+        } {{end}}{{end}}
+    }
+    {{end}}
+}{{end}}
+
+output { {{$outputPfx := "/logstash/config/outputs"}}
+    {{range $dir := ls $outputPfx}}{{$outputdir := printf "%s/%s/*" $outputPfx $dir}}{{range gets $outputdir}}{{$dir}} { {{$data := json .Value}}{{range $key, $value := $data}}
+        {{if (ne $key "")}}{{$key}} => {{end}}{{$value}}{{end}}
+    }
+    {{end}}{{end}}{{$outputCondPfx := printf "%s/conditionals" $outputPfx}}
+    {{if ls $outputCondPfx}}{{range $dir := ls $outputCondPfx}}{{$outputdir := printf "%s/%s/*" $outputCondPfx $dir}}{{$conditionPath := printf "%s/condition" (dir $outputdir)}}{{getv $conditionPath}} { 
+        {{range $rule := lsdir (dir $outputdir)}}{{$rule}} { {{$ruledir := printf "%s/%s/*" (dir $outputdir) $rule}}{{range gets $ruledir}}{{$data := json .Value}}{{range $key, $value := $data}}
+            {{if (ne $key "")}}{{$key}} => {{end}}{{$value}}{{end}}
+        } {{end}}{{end}}
+    }
+    {{end}}{{end}}
+}

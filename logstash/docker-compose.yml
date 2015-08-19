@@ -1,0 +1,62 @@
+logstash-indexer-config:
+  restart: always
+  environment:
+    LOGSTASH_CONFIG_INPUTS_REDIS_0: '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
+    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_0_CONDITION: 'if [docker.name] == "/wmaxwell_rancherlatest_1"'
+    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_0_JSON_0: '{"source": "\"message\""}'
+    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_0_KV_0: '{}'
+    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_1_CONDITION: 'if [docker.name] == "/wmaxwell_rancherlatest_1" and [@message]'
+    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_1_MUTATE_0: '{"replace": "{\"message\" =>
+      \"%{@message}\"}"}'
+    LOGSTASH_CONFIG_FILTERS_GROK_0: '{"match": "[\"message\", \"%{LOGLEVEL:loglevel}\"]"}'
+    LOGSTASH_CONFIG_OUTPUTS_STDOUT_0: '{"codec": "rubydebug"}'
+  tty: true
+  command:
+  - -backend=env
+  image: cloudnautique/logstash-config:v0.2.0
+  stdin_open: true
+redis:
+  restart: always
+  tty: true
+  image: redis:3.0.3
+  stdin_open: true
+logstash-indexer:
+  restart: always
+  tty: true
+  volumes_from:
+  - logstash-indexer-config
+  command:
+  - logstash
+  - -f
+  - /etc/logstash
+  image: logstash:1.5.3-1
+  links:
+  - redis:redis
+  stdin_open: true
+  labels:
+    io.rancher.sidekicks: logstash-indexer-config
+logstash-collector-config:
+  restart: always
+  environment:
+    LOGSTASH_CONFIG_INPUTS_GELF_0: '{}'
+    LOGSTASH_CONFIG_OUTPUTS_REDIS_0: '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
+  tty: true
+  command:
+  - -backend=env
+  image: cloudnautique/logstash-config:v0.2.0
+  stdin_open: true
+logstash-collector:
+  restart: always
+  tty: true
+  ports:
+  - "12201:12201/udp"
+  volumes_from:
+  - logstash-collector-config
+  command:
+  - logstash
+  - -f
+  - /etc/logstash
+  image: logstash:1.5.3-1
+  stdin_open: true
+  labels:
+    io.rancher.sidekicks: logstash-collector-config
