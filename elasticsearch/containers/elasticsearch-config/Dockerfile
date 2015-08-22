@@ -2,7 +2,8 @@ FROM cloudnautique/confd-base:v0.1.0
 
 ADD ./conf.d /etc/confd/conf.d
 ADD ./templates /etc/confd/templates
-VOLUME /etc/logstash
+
+VOLUME /usr/share/elasticsearch/config
 
 ENTRYPOINT ["/confd"]
 CMD []

@@ -1,0 +1,3 @@
+# Placed by confd. Do not hand edit.
+{{range gets "/elasticsearch/*"}}{{ $data := json .Value}}{{range $key, $value := $data}}
+{{$key}}: {{$value}}{{end}}{{end}}

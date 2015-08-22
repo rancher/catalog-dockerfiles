@@ -1,0 +1,4 @@
+# Placed by confd. Do not hand edit.
+
+discovery.zen.ping.multicast.enabled: false
+bootstrap.mlockall: true
