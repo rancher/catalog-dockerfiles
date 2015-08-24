@@ -9,7 +9,7 @@ logstash-indexer-config:
     LOGSTASH_CONFIG_FILTERS_CONDITIONALS_1_MUTATE_0: '{"replace": "{\"message\" =>
       \"%{@message}\"}"}'
     LOGSTASH_CONFIG_FILTERS_GROK_0: '{"match": "[\"message\", \"%{LOGLEVEL:loglevel}\"]"}'
-    LOGSTASH_CONFIG_OUTPUTS_STDOUT_0: '{"codec": "rubydebug"}'
+    LOGSTASH_CONFIG_OUTPUTS_ELASTICSEARCH_0: '{"host": "elasticsearch", "protocol": "http", "index": "\"logstash-demo-%{+YYYY.MM.dd}\""}'
   tty: true
   command:
   - -backend=env
@@ -32,6 +32,8 @@ logstash-indexer:
   image: logstash:1.5.3-1
   links:
   - redis:redis
+  external_links:
+  - es/elasticsearch-datanodes:elasticsearch
   stdin_open: true
   labels:
     io.rancher.sidekicks: logstash-indexer-config
