@@ -1,0 +1,16 @@
+kibana-vip:
+  ports:
+  - 80:5601
+  restart: always
+  tty: true
+  image: rancher/load-balancer-service
+  links:
+  - Kibana4-0:Kibana4-0
+  stdin_open: true
+Kibana4:
+  restart: always
+  external_links:
+  - es/elasticsearch-clients:elasticsearch
+  tty: true
+  image: kibana:4.1.1
+  stdin_open: true
