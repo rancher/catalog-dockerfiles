@@ -1,0 +1,70 @@
+elasticsearch-conf-masters:
+  image: cloudnautique/elasticsearch-conf:v0.3.1
+  tty: true
+  command: -backend=env
+  environment:
+    ELASTICSEARCH_YML_0: '{"cluster.name": "logs"}'
+    ELASTICSEARCH_YML_1: '{"node.name": "${HOSTNAME}"}'
+    ELASTICSEARCH_YML_2: '{"node.data": "false"}'
+    ELASTICSEARCH_YML_3: '{"node.master": "true"}'
+    ELASTICSEARCH_YML_4: '{"bootstrap.mlockall": "true"}'
+    ELASTICSEARCH_YML_5: '{"discovery.zen.ping.multicast.enabled": "false"}'
+elasticsearch-conf-data:
+  image: cloudnautique/elasticsearch-conf:v0.3.1
+  tty: true
+  command: -backend=env
+  environment:
+    ELASTICSEARCH_YML_0: '{"cluster.name": "logs"}'
+    ELASTICSEARCH_YML_1: '{"node.name": "${HOSTNAME}"}'
+    ELASTICSEARCH_YML_2: '{"node.data": "true"}'
+    ELASTICSEARCH_YML_3: '{"node.master": "false"}'
+    ELASTICSEARCH_YML_4: '{"bootstrap.mlockall": "true"}'
+    ELASTICSEARCH_YML_5: '{"discovery.zen.ping.multicast.enabled": "false"}'
+    ELASTICSEARCH_YML_6: '{"discovery.zen.ping.unicast.hosts": ["es-masters"]}'
+    ELASTICSEARCH_YML_7: '{"http.enabled": "false"}'
+elasticsearch-conf-clients:
+  image: cloudnautique/elasticsearch-conf:v0.3.1
+  tty: true
+  command: -backend=env
+  environment:
+    ELASTICSEARCH_YML_0: '{"cluster.name": "logs"}'
+    ELASTICSEARCH_YML_1: '{"node.name": "${HOSTNAME}"}'
+    ELASTICSEARCH_YML_2: '{"node.data": "false"}'
+    ELASTICSEARCH_YML_3: '{"node.master": "false"}'
+    ELASTICSEARCH_YML_4: '{"bootstrap.mlockall": "true"}'
+    ELASTICSEARCH_YML_5: '{"discovery.zen.ping.multicast.enabled": "false"}'
+    ELASTICSEARCH_YML_6: '{"discovery.zen.ping.unicast.hosts": ["es-masters"]}'
+    ELASTICSEARCH_PLUGINS_0: 'lmenezes/elasticsearch-kopf/1.5.7'
+elasticsearch-masters:
+  labels:
+    io.rancher.sidekicks: elasticsearch-conf-masters
+  image: cloudnautique/elasticsearch-bs:v0.1.0
+  volumes_from:
+    - elasticsearch-conf-masters
+elasticsearch-datanodes:
+  labels:
+    io.rancher.sidekicks: elasticsearch-conf-data
+  image: cloudnautique/elasticsearch-bs:v0.1.0
+  volumes_from:
+    - elasticsearch-conf-data
+  links:
+    - elasticsearch-masters:es-masters
+elasticsearch-clients:
+  labels:
+    io.rancher.sidekicks: elasticsearch-conf-clients
+  image: cloudnautique/elasticsearch-bs:v0.1.0
+  volumes_from:
+    - elasticsearch-conf-clients
+  links:
+    - elasticsearch-masters:es-masters
+  environment:
+    PLUGIN_TXT: "/data/confd/plugins.txt"
+kopf:
+  image: lmenezes/elasticsearch-kopf
+  ports: 
+    - "80:80"
+  environment:
+    KOPF_SERVER_NAME: 'es.dev'
+    KOPF_ES_SERVERS: 'es-clients:9200'
+  links:
+    - elasticsearch-clients:es-clients
