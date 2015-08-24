@@ -1,7 +1,8 @@
 # Placed by confd. Do not hand edit.
-{{if exists "/elasticsearch/log/"}}
+{{if (gt (len (ls "/elasticsearch/log")) 0)}}
 {{range gets "/elasticsearch/log/*"}}{{ $data := json .Value}}{{range $key, $value := $data}}
 {{$key}}: {{$value}}{{end}}{{end}}
+{{else}}
 # you can override this using by setting a system property, for example -Des.logger.level=DEBUG
 es.logger.level: INFO
 rootLogger: ${es.logger.level}, console
