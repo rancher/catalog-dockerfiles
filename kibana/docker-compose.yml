@@ -5,7 +5,7 @@ kibana-vip:
   tty: true
   image: rancher/load-balancer-service
   links:
-  - Kibana4-0:Kibana4-0
+  - Kibana4:Kibana4
   stdin_open: true
 Kibana4:
   restart: always

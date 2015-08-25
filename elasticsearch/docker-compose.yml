@@ -34,17 +34,26 @@ elasticsearch-conf-clients:
     ELASTICSEARCH_YML_4: '{"bootstrap.mlockall": "true"}'
     ELASTICSEARCH_YML_5: '{"discovery.zen.ping.multicast.enabled": "false"}'
     ELASTICSEARCH_YML_6: '{"discovery.zen.ping.unicast.hosts": ["es-masters"]}'
-    ELASTICSEARCH_PLUGINS_0: 'lmenezes/elasticsearch-kopf/1.5.7'
 elasticsearch-masters:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-masters
+    io.rancher.scheduler.affinity:host_label: elasticsearch.role=master
+    io.rancher.scheduler.affinity:container_label_ne: elasticsearch.master.config.version=0
+    elasticsearch.master.config.version: '0'
+    io.rancher.scheduler.affinity:host_label_ne: elasticsearch.role=data,elasticsearch.role=client
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes_from:
     - elasticsearch-conf-masters
 elasticsearch-datanodes:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-data
+    elasticsearch.datanode.config.version: '0'
+    io.rancher.scheduler.affinity:container_label_ne: elasticsearch.datanode.config.version=0
+    io.rancher.scheduler.affinity:host_label: elasticsearch.role=data
+    io.rancher.scheduler.affinity:host_label_ne: elasticsearch.role=master,elasticsearch.role=client
   image: cloudnautique/elasticsearch-bs:v0.1.0
+  volumes:
+    - /mnt/data:/usr/share/elasticsearch/data
   volumes_from:
     - elasticsearch-conf-data
   links:
@@ -52,6 +61,10 @@ elasticsearch-datanodes:
 elasticsearch-clients:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-clients
+    elasticsearch.client.config.version: '0'
+    io.rancher.scheduler.affinity:container_label_ne: elasticsearch.client.config.version=0
+    io.rancher.scheduler.affinity:host_label: elasticsearch.role=client
+    io.rancher.scheduler.affinity:host_label_ne: elasticsearch.role=master,elasticsearch.role=data
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes_from:
     - elasticsearch-conf-clients
@@ -60,7 +73,7 @@ elasticsearch-clients:
   environment:
     PLUGIN_TXT: "/data/confd/plugins.txt"
 kopf:
-  image: lmenezes/elasticsearch-kopf
+  image: cloudnautique/kopf:v0.1.0
   ports: 
     - "80:80"
   environment:

@@ -33,7 +33,7 @@ logstash-indexer:
   links:
   - redis:redis
   external_links:
-  - es/elasticsearch-datanodes:elasticsearch
+  - es/elasticsearch-clients:elasticsearch
   stdin_open: true
   labels:
     io.rancher.sidekicks: logstash-indexer-config
