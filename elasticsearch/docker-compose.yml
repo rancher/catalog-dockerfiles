@@ -37,10 +37,7 @@ elasticsearch-conf-clients:
 elasticsearch-masters:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-masters
-    io.rancher.scheduler.affinity:host_label: elasticsearch.role=master
-    io.rancher.scheduler.affinity:container_label_ne: elasticsearch.master.config.version=0
     elasticsearch.master.config.version: '0'
-    io.rancher.scheduler.affinity:host_label_ne: elasticsearch.role=data,elasticsearch.role=client
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes_from:
     - elasticsearch-conf-masters
@@ -48,9 +45,6 @@ elasticsearch-datanodes:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-data
     elasticsearch.datanode.config.version: '0'
-    io.rancher.scheduler.affinity:container_label_ne: elasticsearch.datanode.config.version=0
-    io.rancher.scheduler.affinity:host_label: elasticsearch.role=data
-    io.rancher.scheduler.affinity:host_label_ne: elasticsearch.role=master,elasticsearch.role=client
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes:
     - /mnt/data:/usr/share/elasticsearch/data
@@ -62,9 +56,6 @@ elasticsearch-clients:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-clients
     elasticsearch.client.config.version: '0'
-    io.rancher.scheduler.affinity:container_label_ne: elasticsearch.client.config.version=0
-    io.rancher.scheduler.affinity:host_label: elasticsearch.role=client
-    io.rancher.scheduler.affinity:host_label_ne: elasticsearch.role=master,elasticsearch.role=data
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes_from:
     - elasticsearch-conf-clients
