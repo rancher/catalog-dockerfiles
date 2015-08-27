@@ -14,3 +14,5 @@ Kibana4:
   tty: true
   image: kibana:4.1.1
   stdin_open: true
+  labels:
+    io.rancher.container.hostname_override: container_name

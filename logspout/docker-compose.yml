@@ -9,6 +9,7 @@ logspout:
   - logs/logstash-collector:logstash
   labels:
     io.rancher.scheduler.global: 'true'
+    io.rancher.container.hostname_override: container_name
   tty: true
   image: cloudnautique/logspout-logstash:v0.1.0
   stdin_open: true

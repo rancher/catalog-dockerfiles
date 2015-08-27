@@ -9,6 +9,8 @@ elasticsearch-conf-masters:
     ELASTICSEARCH_YML_3: '{"node.master": "true"}'
     ELASTICSEARCH_YML_4: '{"bootstrap.mlockall": "true"}'
     ELASTICSEARCH_YML_5: '{"discovery.zen.ping.multicast.enabled": "false"}'
+  labels:
+    io.rancher.container.hostname_override: container_name
 elasticsearch-conf-data:
   image: cloudnautique/elasticsearch-conf:v0.3.1
   tty: true
@@ -22,6 +24,8 @@ elasticsearch-conf-data:
     ELASTICSEARCH_YML_5: '{"discovery.zen.ping.multicast.enabled": "false"}'
     ELASTICSEARCH_YML_6: '{"discovery.zen.ping.unicast.hosts": ["es-masters"]}'
     ELASTICSEARCH_YML_7: '{"http.enabled": "false"}'
+  labels:
+    io.rancher.container.hostname_override: container_name
 elasticsearch-conf-clients:
   image: cloudnautique/elasticsearch-conf:v0.3.1
   tty: true
@@ -34,10 +38,13 @@ elasticsearch-conf-clients:
     ELASTICSEARCH_YML_4: '{"bootstrap.mlockall": "true"}'
     ELASTICSEARCH_YML_5: '{"discovery.zen.ping.multicast.enabled": "false"}'
     ELASTICSEARCH_YML_6: '{"discovery.zen.ping.unicast.hosts": ["es-masters"]}'
+  labels:
+    io.rancher.container.hostname_override: container_name
 elasticsearch-masters:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-masters
     elasticsearch.master.config.version: '0'
+    io.rancher.container.hostname_override: container_name
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes_from:
     - elasticsearch-conf-masters
@@ -45,6 +52,8 @@ elasticsearch-datanodes:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-data
     elasticsearch.datanode.config.version: '0'
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=elasticsearch-datanodes
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes:
     - /mnt/data:/usr/share/elasticsearch/data
@@ -56,6 +65,7 @@ elasticsearch-clients:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-clients
     elasticsearch.client.config.version: '0'
+    io.rancher.container.hostname_override: container_name
   image: cloudnautique/elasticsearch-bs:v0.1.0
   volumes_from:
     - elasticsearch-conf-clients
@@ -70,5 +80,7 @@ kopf:
   environment:
     KOPF_SERVER_NAME: 'es.dev'
     KOPF_ES_SERVERS: 'es-clients:9200'
+  labels:
+    io.rancher.container.hostname_override: container_name
   links:
     - elasticsearch-clients:es-clients
