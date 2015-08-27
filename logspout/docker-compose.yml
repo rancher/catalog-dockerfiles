@@ -3,6 +3,8 @@ logspout:
   environment:
     ROUTE_URIS: 'logstash://logstash:5000'
     LOGSPOUT: 'ignore'
+  volumes:
+  - '/var/run/docker.sock:/var/run/docker.sock'
   external_links:
   - logs/logstash-collector:logstash
   labels:
