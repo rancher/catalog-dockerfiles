@@ -1,0 +1,12 @@
+logspout:
+  restart: always
+  environment:
+    ROUTE_URIS: 'logstash://logstash:5000'
+    LOGSPOUT: 'ignore'
+  external_links:
+  - logs/logstash-collector:logstash
+  labels:
+    io.rancher.scheduler.global: 'true'
+  tty: true
+  image: cloudnautique/logspout-logstash:v0.1.0
+  stdin_open: true
