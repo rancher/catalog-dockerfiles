@@ -2,10 +2,10 @@ logstash-indexer-config:
   restart: always
   environment:
     LOGSTASH_CONFIG_INPUTS_REDIS_0: '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
-    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_0_CONDITION: 'if [docker.name] == "/wmaxwell_rancherlatest_1"'
+    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_0_CONDITION: 'if [docker.name] == "/rancher-server"'
     LOGSTASH_CONFIG_FILTERS_CONDITIONALS_0_JSON_0: '{"source": "\"message\""}'
     LOGSTASH_CONFIG_FILTERS_CONDITIONALS_0_KV_0: '{}'
-    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_1_CONDITION: 'if [docker.name] == "/wmaxwell_rancherlatest_1" and [@message]'
+    LOGSTASH_CONFIG_FILTERS_CONDITIONALS_1_CONDITION: 'if [docker.name] == "/rancher-latest" and [@message]'
     LOGSTASH_CONFIG_FILTERS_CONDITIONALS_1_MUTATE_0: '{"replace": "{\"message\" =>
       \"%{@message}\"}"}'
     LOGSTASH_CONFIG_FILTERS_GROK_0: '{"match": "[\"message\", \"%{LOGLEVEL:loglevel}\"]"}'
@@ -13,7 +13,7 @@ logstash-indexer-config:
   tty: true
   command:
   - -backend=env
-  image: cloudnautique/logstash-config:v0.3.0
+  image: cloudnautique/logstash-config:v0.4.1
   stdin_open: true
 redis:
   restart: always
@@ -45,7 +45,7 @@ logstash-collector-config:
   tty: true
   command:
   - -backend=env
-  image: cloudnautique/logstash-config:v0.3.0
+  image: cloudnautique/logstash-config:v0.4.1
   stdin_open: true
 logstash-collector:
   restart: always
