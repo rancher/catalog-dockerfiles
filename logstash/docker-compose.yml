@@ -40,7 +40,6 @@ logstash-indexer:
 logstash-collector-config:
   restart: always
   environment:
-    LOGSTASH_CONFIG_INPUTS_GELF_0: '{}'
     LOGSTASH_CONFIG_INPUTS_UDP_0: '{"port": 5000, "codec": "json"}'
     LOGSTASH_CONFIG_OUTPUTS_REDIS_0: '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
   tty: true
@@ -54,8 +53,7 @@ logstash-collector:
   links:
   - redis:redis
   ports:
-  - "5000"
-  - "12201"
+  - "5000/udp"
   volumes_from:
   - logstash-collector-config
   command:
