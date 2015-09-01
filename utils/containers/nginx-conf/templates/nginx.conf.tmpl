@@ -1,0 +1,22 @@
+{{range $dir := lsdir "/nginx/web"}}
+upstream {{base $dir}} { {{range gets (printf "/nginx/web/%s/upstreams/*" $dir)}}
+   server {{$data := json .Value}}{{$data.IP}}:{{$data.PORT}};{{end}}
+}
+
+server {
+   listen 80;
+   server_name {{getv (printf "/nginx/web/%s/servername" $dir)}};
+
+   {{if (gt (len (ls (printf "/nginx/web/%s/users" $dir))) 0)}}
+   auth_basic "Access restricted";
+   auth_basic_user_file /etc/nginx/access/kibana.htpasswd;
+   {{end}}
+
+   # Do not pass Auth headers along.
+   proxy_set_header Authorization "";
+
+   location / {
+      proxy_pass http://{{base $dir}};
+   }
+}
+{{end}}

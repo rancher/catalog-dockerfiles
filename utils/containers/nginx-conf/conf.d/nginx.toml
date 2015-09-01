@@ -1,0 +1,6 @@
+[template]
+src="nginx.conf.tmpl"
+dest="/etc/nginx/conf.d/nginx.conf"
+keys = [
+  "/nginx/web/"
+]
