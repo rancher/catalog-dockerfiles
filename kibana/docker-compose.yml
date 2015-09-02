@@ -10,8 +10,8 @@ kibana-vip:
 nginx-proxy-conf:
   image: cloudnautique/nginx-conf:v0.1.0
   environment:
-    NXINX_WEB_KIBANA_UPSTREAMS_0: '{"IP": "kibana", "PORT": "5601"}'
-    NXINX_WEB_KIBANA_SEVERNAME: 'kibana'
+    NGINX_WEB_KIBANA_UPSTREAMS_0: '{"IP": "kibana", "PORT": "5601"}'
+    NGINX_WEB_KIBANA_SEVERNAME: 'kibana'
   labels:
     io.rancher.container.hostname_override: container_name
 nginx-proxy:
