@@ -9,16 +9,17 @@ kibana-vip:
   stdin_open: true
 nginx-proxy-conf:
   image: cloudnautique/nginx-conf:v0.1.0
+  command: -backend=env
   environment:
     NGINX_WEB_KIBANA_UPSTREAMS_0: '{"IP": "kibana", "PORT": "5601"}'
-    NGINX_WEB_KIBANA_SEVERNAME: 'kibana'
+    NGINX_WEB_KIBANA_SERVERNAME: 'kibana'
   labels:
     io.rancher.container.hostname_override: container_name
 nginx-proxy:
   image: nginx:1.9.4
   links:
     - kibana4:kibana
-  volumes-from:
+  volumes_from:
     - nginx-proxy-conf
   labels:
     io.rancher.container.hostname_override: container_name
