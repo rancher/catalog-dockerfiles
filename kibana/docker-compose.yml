@@ -1,13 +1,29 @@
 kibana-vip:
   ports:
-  - 80:5601
+  - 80:80
   restart: always
   tty: true
   image: rancher/load-balancer-service
   links:
-  - Kibana4:Kibana4
+  - nginx-proxy:kibana4
   stdin_open: true
-Kibana4:
+nginx-proxy-conf:
+  image: cloudnautique/nginx-conf:v0.1.0
+  environment:
+    NXINX_WEB_KIBANA_UPSTREAMS_0: '{"IP": "kibana", "PORT": "5601"}'
+    NXINX_WEB_KIBANA_SEVERNAME: 'kibana'
+  labels:
+    io.rancher.container.hostname_override: container_name
+nginx-proxy:
+  image: nginx:1.9.4
+  links:
+    - kibana4:kibana
+  volumes-from:
+    - nginx-proxy-conf
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.sidekicks: nginx-proxy-conf
+kibana4:
   restart: always
   external_links:
   - es/elasticsearch-clients:elasticsearch
