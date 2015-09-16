@@ -1,4 +1,4 @@
-FROM cloudnautique/confd-base:v0.1.0
+FROM rancher/confd-base:v0.1.0
 
 ADD ./conf.d /etc/confd/conf.d
 ADD ./templates /etc/confd/templates

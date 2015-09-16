@@ -1,5 +1,5 @@
 elasticsearch-conf-masters:
-  image: cloudnautique/elasticsearch-conf:v0.3.1
+  image: rancher/elasticsearch-conf:v0.1.0
   tty: true
   command: -backend=env
   environment:
@@ -12,7 +12,7 @@ elasticsearch-conf-masters:
   labels:
     io.rancher.container.hostname_override: container_name
 elasticsearch-conf-data:
-  image: cloudnautique/elasticsearch-conf:v0.3.1
+  image: rancher/elasticsearch-conf:v0.1.0
   tty: true
   command: -backend=env
   environment:
@@ -27,7 +27,7 @@ elasticsearch-conf-data:
   labels:
     io.rancher.container.hostname_override: container_name
 elasticsearch-conf-clients:
-  image: cloudnautique/elasticsearch-conf:v0.3.1
+  image: rancher/elasticsearch-conf:v0.1.0
   tty: true
   command: -backend=env
   environment:
@@ -45,7 +45,7 @@ elasticsearch-masters:
     io.rancher.sidekicks: elasticsearch-conf-masters
     elasticsearch.master.config.version: '0'
     io.rancher.container.hostname_override: container_name
-  image: cloudnautique/elasticsearch-bs:v0.1.0
+  image: rancher/elasticsearch-bootstrap:v0.1.0
   volumes_from:
     - elasticsearch-conf-masters
 elasticsearch-datanodes:
@@ -54,7 +54,7 @@ elasticsearch-datanodes:
     elasticsearch.datanode.config.version: '0'
     io.rancher.container.hostname_override: container_name
     io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=elasticsearch-datanodes
-  image: cloudnautique/elasticsearch-bs:v0.1.0
+  image: rancher/elasticsearch-bootstrap:v0.1.0
   volumes:
     - /mnt/data:/usr/share/elasticsearch/data
   volumes_from:
@@ -66,7 +66,7 @@ elasticsearch-clients:
     io.rancher.sidekicks: elasticsearch-conf-clients
     elasticsearch.client.config.version: '0'
     io.rancher.container.hostname_override: container_name
-  image: cloudnautique/elasticsearch-bs:v0.1.0
+  image: rancher/elasticsearch-bootstrap:v0.1.0
   volumes_from:
     - elasticsearch-conf-clients
   links:
@@ -74,7 +74,7 @@ elasticsearch-clients:
   environment:
     PLUGIN_TXT: "/data/confd/plugins.txt"
 kopf:
-  image: cloudnautique/kopf:v0.1.0
+  image: rancher/kopf:v0.1.0
   ports: 
     - "80:80"
   environment:

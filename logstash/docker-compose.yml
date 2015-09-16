@@ -13,7 +13,7 @@ logstash-indexer-config:
   tty: true
   command:
   - -backend=env
-  image: cloudnautique/logstash-config:v0.4.1
+  image: rancher/logstash-config:v0.1.0
   stdin_open: true
   labels:
     io.rancher.container.hostname_override: container_name
@@ -50,7 +50,7 @@ logstash-collector-config:
   tty: true
   command:
   - -backend=env
-  image: cloudnautique/logstash-config:v0.4.1
+  image: rancher/logstash-config:v0.1.0
   stdin_open: true
   labels:
     io.rancher.container.hostname_override: container_name

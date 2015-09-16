@@ -8,7 +8,7 @@ kibana-vip:
   - nginx-proxy:kibana4
   stdin_open: true
 nginx-proxy-conf:
-  image: cloudnautique/nginx-conf:v0.1.0
+  image: rancher/nginx-conf:v0.1.0
   command: -backend=env
   environment:
     NGINX_WEB_KIBANA_UPSTREAMS_0: '{"IP": "kibana", "PORT": "5601"}'
@@ -16,7 +16,7 @@ nginx-proxy-conf:
   labels:
     io.rancher.container.hostname_override: container_name
 nginx-proxy:
-  image: nginx:1.9.4
+  image: rancher/nginx:v1.9.4-2
   links:
     - kibana4:kibana
   volumes_from:

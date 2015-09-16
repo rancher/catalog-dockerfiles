@@ -6,10 +6,10 @@ logspout:
   volumes:
   - '/var/run/docker.sock:/var/run/docker.sock'
   external_links:
-  - logs/logstash-collector:logstash
+  - logstash/logstash-collector:logstash
   labels:
     io.rancher.scheduler.global: 'true'
     io.rancher.container.hostname_override: container_name
   tty: true
-  image: cloudnautique/logspout-logstash:v0.1.0
+  image: rancher/logspout-logstash:v0.2.0
   stdin_open: true
