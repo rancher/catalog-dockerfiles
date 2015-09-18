@@ -1,0 +1,10 @@
+zookeeper-config:
+  image: rancher/zookeeper-config:v0.1.0
+  volumes_from:
+    - zookeeper
+  net: "container:zookeeper"
+zookeeper:
+  labels:
+    io.rancher.sidekicks: zookeeper-config
+    io.rancher.scheduler.affinity:host_label: zk=rancher
+  image: rancher/zookeeper:3.4.6-1

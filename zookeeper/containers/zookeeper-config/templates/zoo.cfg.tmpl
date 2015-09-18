@@ -1,0 +1,9 @@
+tickTime=2000
+initLimit=10
+syncLimit=5
+dataDir=/var/lib/zookeeper
+clientPort=2181
+autopurge.snapRetainCount=3
+autopurge.purgeInterval=1
+{{range ls "/self/service/containers"}}{{ $containerName := getv (printf "/self/service/containers/%s" .)}}
+server.{{getv (printf "/containers/%s/create_index" $containerName)}}={{getv (printf "/containers/%s/primary_ip" $containerName)}}:2888:3888{{end}}
