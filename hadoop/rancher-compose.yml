@@ -1,0 +1,8 @@
+namenode-primary:
+  scale: 1
+datanode:
+  scale: 1
+yarn-resourcemanager:
+  scale: 1
+yarn-nodemanager:
+  scale: 1
