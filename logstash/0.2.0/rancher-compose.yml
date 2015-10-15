@@ -1,0 +1,45 @@
+logstash-indexer:
+  metadata:
+    logstash:
+      inputs: |
+        redis {
+          host => "redis"
+          port => "6379"
+          data_type => "list"
+          key => "logstash"
+        }
+      filters: |
+        if [docker.name] == "/rancher-server" {
+            json {
+               source => "message"
+            }
+
+            kv {}
+
+            if [@message] {
+               mutate {
+                 replace => { "message" => "%{@message}" }
+               }
+            }
+        }
+      outputs: |
+        elasticsearch {
+          host => "elasticsearch"
+          protocol => "http"
+          index => "logstash-demo-%{+YYYY.MM.dd}"
+        }
+logstash-collector:
+  metadata:
+    logstash:
+      inputs: |
+        udp {
+          port => 5000
+          codec => "json"
+        }
+      outputs: |
+        redis {
+          host => "redis"
+          port => "6379"
+          data_type => "list"
+          key => "logstash"
+        }
