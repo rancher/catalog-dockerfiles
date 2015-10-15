@@ -1,6 +1,0 @@
-# Placed by confd. Do not hand edit.
-{{range ls "/elasticsearch/yml"}}
-{{.}}: {{getv (printf "/elasticsearch/yml/%s" .)}}{{end}}
-
-bootstrap.mlockall: true
-discovery.zen.ping.multicast.enabled: false
