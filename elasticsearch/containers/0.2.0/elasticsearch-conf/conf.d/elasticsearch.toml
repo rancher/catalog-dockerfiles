@@ -2,5 +2,6 @@
 src = "elasticsearch.tmpl"
 dest = "/usr/share/elasticsearch/config/elasticsearch.yml"
 keys = [
-  "/elasticsearch/yml/",
+  "/self/service",
+  "/containers",
 ]

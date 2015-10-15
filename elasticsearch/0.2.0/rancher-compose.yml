@@ -6,7 +6,6 @@ elasticsearch-masters:
         node.name: "$${HOSTNAME}"
         node.data: "false"
         node.master: "true"
-        discovery.zen.ping.unicast.hosts: '["es-masters"]'
 elasticsearch-datanodes:
   metadata:
     elasticsearch:
@@ -16,7 +15,6 @@ elasticsearch-datanodes:
         node.data: "true"
         node.master: "false"
         http.enabled: "false"
-        discovery.zen.ping.unicast.hosts: '["es-masters"]'
 elasticsearch-clients:
   metadata:
     elasticsearch:
@@ -25,4 +23,3 @@ elasticsearch-clients:
        node.name: "$${HOSTNAME}"
        node.data: "false"
        node.master: "false"
-       discovery.zen.ping.unicast.hosts: '["es-masters"]'

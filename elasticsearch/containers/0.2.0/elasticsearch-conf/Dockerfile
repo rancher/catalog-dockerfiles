@@ -7,4 +7,4 @@ VOLUME /usr/share/elasticsearch/config
 VOLUME /data/confd
 
 ENTRYPOINT ["/confd"]
-CMD ["--backend", "rancher", "--prefix", "/2015-07-25/self/service/metadata"]
+CMD ["--backend", "rancher", "--prefix", "/2015-07-25"]

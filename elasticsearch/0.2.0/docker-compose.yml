@@ -1,34 +1,42 @@
 elasticsearch-conf-masters:
-  image: rancher/elasticsearch-conf:v0.2.0
+  image: rancher/elasticsearch-conf:v0.2.1
   labels:
     io.rancher.container.hostname_override: container_name
-elasticsearch-conf-data:
-  image: rancher/elasticsearch-conf:v0.2.0
+  volumes_from:
+    - elasticsearch-masters
+  net: "container:elasticsearch-masters"
+elasticsearch-conf-datanodes:
+  image: rancher/elasticsearch-conf:v0.2.1
   labels:
     io.rancher.container.hostname_override: container_name
+  volumes_from:
+    - elasticsearch-datanodes
+  net: "container:elasticsearch-datanodes"
 elasticsearch-conf-clients:
-  image: rancher/elasticsearch-conf:v0.2.0
+  image: rancher/elasticsearch-conf:v0.2.1
   labels:
     io.rancher.container.hostname_override: container_name
+  volumes_from:
+    - elasticsearch-clients
+  net: "container:elasticsearch-clients"
 elasticsearch-masters:
   labels:
     io.rancher.sidekicks: elasticsearch-conf-masters
     elasticsearch.master.config.version: '0'
     io.rancher.container.hostname_override: container_name
   image: rancher/elasticsearch-bootstrap:v0.2.0
-  volumes_from:
-    - elasticsearch-conf-masters
+  volumes:
+    - /usr/share/elasticsearch/config
 elasticsearch-datanodes:
   labels:
-    io.rancher.sidekicks: elasticsearch-conf-data
+    io.rancher.sidekicks: elasticsearch-conf-datanodes
     elasticsearch.datanode.config.version: '0'
     io.rancher.container.hostname_override: container_name
     io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
   image: rancher/elasticsearch-bootstrap:v0.2.0
   volumes:
     - /mnt/data:/usr/share/elasticsearch/data
-  volumes_from:
-    - elasticsearch-conf-data
+    - /usr/share/elasticsearch/config
   links:
     - elasticsearch-masters:es-masters
 elasticsearch-clients:
@@ -37,8 +45,8 @@ elasticsearch-clients:
     elasticsearch.client.config.version: '0'
     io.rancher.container.hostname_override: container_name
   image: rancher/elasticsearch-bootstrap:v0.2.0
-  volumes_from:
-    - elasticsearch-conf-clients
+  volumes:
+    - /usr/share/elasticsearch/config
   links:
     - elasticsearch-masters:es-masters
 kopf:
