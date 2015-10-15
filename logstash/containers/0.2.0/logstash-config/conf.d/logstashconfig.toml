@@ -1,0 +1,8 @@
+[template]
+src = "logstash.conf.tmpl"
+dest = "/etc/logstash/logstash.conf"
+keys = [
+    "/self/service/metadata/logstash/inputs",
+    "/self/service/metadata/logstash/outputs",
+    "/self/service/metadata/logstash/filters",
+]

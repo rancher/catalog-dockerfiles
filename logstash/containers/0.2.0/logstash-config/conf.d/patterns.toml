@@ -1,0 +1,6 @@
+[template]
+src = "patterns.tmpl"
+dest = "/opt/logstash/patterns/extra"
+keys = [
+  "/self/service/metadata/logstash/patterns/",
+]

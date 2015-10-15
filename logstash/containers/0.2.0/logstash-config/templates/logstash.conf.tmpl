@@ -1,0 +1,12 @@
+input {
+    {{getv "/self/service/metadata/logstash/inputs"}}
+}
+
+{{if exists "/self/service/metadata/logstash/filters"}}
+filter {
+    {{getv "/self/service/metadata/logstash/filters"}}
+}{{end}}
+
+output {
+    {{getv "/self/service/metadata/logstash/outputs"}}
+}
