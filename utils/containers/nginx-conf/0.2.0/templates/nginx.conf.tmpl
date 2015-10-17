@@ -1,0 +1,20 @@
+{{$serverName := getv "/self/service/metadata/nginx/conf/servername"}}upstream {{$serverName}} {
+   server 127.0.0.1:{{getv "/self/service/metadata/nginx/conf/upstream_port"}};
+}
+
+server {
+   listen 80;
+   server_name {{$serverName}};
+
+   {{if exists "/self/service/metadata/nginx/users/0/username"}}
+   auth_basic "Access restricted";
+   auth_basic_user_file /etc/nginx/access/htpasswd;
+   {{end}}
+
+   # Do not pass Auth headers along.
+   proxy_set_header Authorization "";
+
+   location / {
+      proxy_pass http://{{$serverName}};
+   }
+}
