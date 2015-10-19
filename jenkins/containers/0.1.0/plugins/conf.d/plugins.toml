@@ -1,0 +1,6 @@
+[template]
+src="plugins.tmpl"
+dest="/usr/share/jenkins/rancher/plugins.txt"
+keys= [
+  "/self/service/metadata/plugins",
+]
