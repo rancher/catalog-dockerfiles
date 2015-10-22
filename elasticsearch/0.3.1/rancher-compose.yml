@@ -1,0 +1,25 @@
+elasticsearch-masters:
+  metadata:
+    elasticsearch:
+      yml:
+        cluster.name: "logs"
+        node.name: "$${HOSTNAME}"
+        node.data: "false"
+        node.master: "true"
+elasticsearch-datanodes:
+  metadata:
+    elasticsearch:
+      yml:
+        cluster.name: "logs"
+        node.name: "$${HOSTNAME}"
+        node.data: "true"
+        node.master: "false"
+        http.enabled: "false"
+elasticsearch-clients:
+  metadata:
+    elasticsearch:
+      yml:
+       cluster.name: "logs"
+       node.name: "$${HOSTNAME}"
+       node.data: "false"
+       node.master: "false"

@@ -1,0 +1,13 @@
+#datanodei Placed by confd. Do not hand edit.
+{{range ls "/self/service/metadata/elasticsearch/yml"}}
+{{.}}: {{getv (printf "/self/service/metadata/elasticsearch/yml/%s" .)}}{{end}}
+
+bootstrap.mlockall: true
+discovery.zen.ping.multicast.enabled: false
+
+{{with get "/self/service/name"}}{{if eq "elasticsearch-masters" .Value}}
+discovery.zen.ping.unicast.hosts: {{range ls "/self/service/containers"}}{{ $containerName := getv (printf "/self/service/containers/%s" .)}}
+  - {{getv (printf "/containers/%s/primary_ip" $containerName)}}{{end}}
+{{else}}
+discovery.zen.ping.unicast.hosts: ["es-masters"]
+{{end}}{{end}}
