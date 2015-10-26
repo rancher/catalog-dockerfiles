@@ -6,5 +6,4 @@ zookeeper-config:
 zookeeper:
   labels:
     io.rancher.sidekicks: zookeeper-config
-    io.rancher.scheduler.affinity:host_label: zk=rancher
   image: rancher/zookeeper:3.4.6-1
