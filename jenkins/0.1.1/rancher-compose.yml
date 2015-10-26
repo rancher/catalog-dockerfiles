@@ -1,0 +1,16 @@
+jenkins-primary:
+  metadata:
+    plugins: |
+      credentials
+      greenballs
+      git
+      junit
+      git-client
+      github-api
+      github-oauth
+      github
+      plain-credentials
+      scm-api
+      ssh-credentials
+      ssh-slaves
+      swarm
