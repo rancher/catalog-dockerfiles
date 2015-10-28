@@ -1,0 +1,49 @@
+# GlusterFS (3.7.5)
+
+---
+
+## Purpose
+
+ This is compose file that launches a GlusterFS cluster and creates a replicated data volume.
+ 
+ In this case, think of the `stack` as the trusted storage pool with a single volume. Multiple volumes would be deployed via multiple stacks.
+ 
+The volume will then be mountable as a glusterfs volume.
+ 
+ ## How to Use
+ 
+ Launch a new stack with the desired replica count set as `scale` in rancher-compose.yml.
+ 
+ If you wanted a volume that keeps '3' replicas, you would set 
+ 
+```
+---
+glusterfs-server:
+  scale: 3 # replica count
+  ...
+```
+
+You can define the Gluster Volume name in the metadata section of the glusterfs-server service
+
+```
+glusterfs-server:
+  ...
+  metadata:
+    volume_name: "my_volume"
+  ...
+```
+
+bring up the cluster with rancher-compose
+
+`rancher-compose -p gluster up`
+
+Once the volume is up you can mount it from a client with:
+`mount -t glusterfs <ip of gluster node>:/my_volume /mnt`
+
+*Note: Mounting inside a docker container needs `--cap-add SYS_ADMIN --device /dev/fuse:/dev/fuse:rwm ` On the 3.19.x kernel in Ubuntu, there is a bug with Apparmor, that requires the client container have `--privileged` options.
+
+
+
+
+
+
