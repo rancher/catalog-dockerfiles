@@ -1,0 +1,4 @@
+glusterfs-server:
+  scale: 3
+  metadata:
+    volume_name: "my_vol"
