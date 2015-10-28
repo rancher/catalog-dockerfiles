@@ -1,0 +1,2 @@
+kafka:
+  scale: 3

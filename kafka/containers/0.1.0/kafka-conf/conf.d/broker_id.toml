@@ -1,0 +1,9 @@
+[template]
+prefix = "/self/container"
+src = "broker_id.tmpl"
+dest = "/opt/kafka/conf.d/broker_id"
+owner = "root"
+mode = "0644"
+keys = [
+  "/create_index",
+]

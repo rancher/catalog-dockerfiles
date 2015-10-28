@@ -1,0 +1,9 @@
+[template]
+src = "zookeeper_connect.tmpl"
+dest = "/opt/kafka/conf.d/zookeeper_connect"
+owner = "root"
+mode = "0644"
+keys = [
+  "/services/zookeeper/containers",
+  "/containers"
+]

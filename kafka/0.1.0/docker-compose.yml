@@ -1,0 +1,11 @@
+kafka-conf:
+  image: rancher/kafka-conf:v0.1.0
+  volumes_from:
+    - kafka
+  net: "container:kafka"
+kafka:
+  image: rancher/kafka:0.8.2.2
+  labels:
+    io.rancher.sidekicks: kafka-conf
+  environment:
+    KAFKA_CONFIG_LOG_DIRS: "/data/kafka"
