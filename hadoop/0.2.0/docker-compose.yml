@@ -1,0 +1,138 @@
+bootstrap-hdfs:
+  image: rancher/hadoop-base:v0.2.0
+  labels:
+    io.rancher.container.start_once: true
+  command: 'su -c "sleep 20 && exec /bootstrap-hdfs.sh" hdfs'
+  net: "container:namenode-primary"
+  volumes_from:
+    - namenode-primary-data
+sl-nn-config:
+  image: rancher/hadoop-followers-config:v0.1.0
+  net: "container:namenode-primary"
+  volumes_from:
+    - namenode-primary-data
+nn-config:
+  image: rancher/hadoop-config:v0.2.0
+  net: "container:namenode-primary"
+  volumes_from:
+    - namenode-primary-data
+namenode-primary:
+  image: rancher/hadoop-base:v0.2.0
+  command: 'su -c "sleep 15 && /usr/local/hadoop-2.7.1/bin/hdfs namenode" hdfs'
+  volumes_from:
+    - namenode-primary-data
+  ports:
+    - 50070:50070
+  labels:
+    io.rancher.sidekicks: nn-config,sl-nn-config,bootstrap-hdfs,namenode-primary-data
+    io.rancher.container.hostname_override: container_name
+namenode-primary-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+
+dn-config:
+  image: rancher/hadoop-config:v0.2.0
+  net: "container:datanode"
+  volumes_from:
+    - datanode-data
+datanode-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+datanode:
+  image: rancher/hadoop-base:v0.2.0
+  volumes_from:
+    - datanode-data
+  labels:
+    io.rancher.sidekicks: dn-config,datanode-data
+    io.rancher.container.hostname_override: container_name
+  links:
+    - 'namenode-primary:namenode'
+    - 'yarn-resourcemanager:yarn-rm'
+  command: 'su -c "sleep 45 && exec /usr/local/hadoop-2.7.1/bin/hdfs datanode" hdfs'
+
+yarn-nm-config:
+  image: rancher/hadoop-config:v0.2.0
+  net: "container:yarn-nodemanager"
+  volumes_from:
+    - yarn-nodemanager-data
+yarn-nodemanager-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+yarn-nodemanager:
+  image: rancher/hadoop-base:v0.2.0
+  volumes_from:
+    - yarn-nodemanager-data
+  ports:
+    - '8042:8042'
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.sidekicks: yarn-nm-config,yarn-nodemanager-data
+  links:
+    - 'namenode-primary:namenode'
+    - 'yarn-resourcemanager:yarn-rm'
+  command: 'su -c "sleep 45 && exec /usr/local/hadoop-2.7.1/bin/yarn nodemanager" yarn'
+
+jhs-config:
+  image: rancher/hadoop-config:v0.2.0
+  net: "container:jobhistoryserver"
+  volumes_from:
+    - jhs-data
+jhs-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+jobhistoryserver:
+  image: rancher/hadoop-base:v0.2.0
+  volumes_from:
+    - jhs-data
+  links:
+    - 'namenode-primary:namenode'
+    - 'yarn-resourcemanager:yarn-rm'
+  ports:
+    - '10020:10020'
+    - '19888:19888'
+  labels:
+    io.rancher.sidekicks: jhs-config,jhs-data
+    io.rancher.container.hostname_override: container_name
+  command: 'su -c "sleep 45 && /usr/local/hadoop-2.7.1/bin/mapred historyserver" mapred'
+
+yrm-config:
+  image: rancher/hadoop-config:v0.2.0
+  net: "container:yarn-resourcemanager"
+  volumes_from:
+    - yarn-resourcemanager-data
+sl-yrm-config:
+  image: rancher/hadoop-followers-config:v0.1.0
+  net: "container:yarn-resourcemanager"
+  volumes_from:
+    - yarn-resourcemanager-data
+yarn-resourcemanager-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+yarn-resourcemanager:
+  image: rancher/hadoop-base:v0.2.0
+  volumes_from:
+    - yarn-resourcemanager-data
+  ports:
+    - '8088:8088'
+  links:
+    - 'namenode-primary:namenode'
+    - 'jobhistoryserver:jhserver'
+  labels:
+    io.rancher.sidekicks: yrm-config,sl-yrm-config,yarn-resourcemanager-data
+    io.rancher.container.hostname_override: container_name
+  command: 'su -c "sleep 30 && /usr/local/hadoop-2.7.1/bin/yarn resourcemanager" yarn'
