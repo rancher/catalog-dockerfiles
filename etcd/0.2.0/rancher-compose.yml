@@ -1,0 +1,2 @@
+etcd:
+  scale: 3
