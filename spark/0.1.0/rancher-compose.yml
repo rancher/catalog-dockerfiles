@@ -1,0 +1,14 @@
+spark-master:
+  scale: 1
+  metadata:
+    spark-env: |
+      SPARK_DAEMON_JAVA_OPTS="$${JAVA_OPTS} \
+      -Dspark.deploy.recoveryMode=ZOOKEEPER \
+      -Dspark.deploy.zookeeper.url=$${ZK_STRING} \
+      -Dspark.deploy.zookeeper.dir=/spark/${stack}"
+spark-worker:
+  scale: 1
+  metadata:
+    spark-env: |
+      export SPARK_WORKER_DIR=/spark/work
+      export SPARK_LOCAL_DIRS=/spark/work

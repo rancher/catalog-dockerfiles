@@ -1,0 +1,6 @@
+[template]
+src="spark-defaults.conf.tmpl"
+dest="/etc/spark/spark-defaults.conf"
+keys= [
+  "/self",
+]
