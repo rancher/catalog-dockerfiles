@@ -1,0 +1,6 @@
+[template]
+src = "httpfs-env.sh"
+dest = "/etc/hadoop/httpfs-env.sh"
+owner = "hadoop"
+mode = "0644"
+keys = []

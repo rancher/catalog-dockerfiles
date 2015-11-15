@@ -1,0 +1,7 @@
+[template]
+src = "capacity-scheduler.xml.tmpl"
+dest = "/etc/hadoop/capacity-scheduler.xml"
+owner = "hadoop"
+mode = "0644"
+keys = [
+]

@@ -1,0 +1,2 @@
+{{range ls "/services/node-config/containers"}}{{ $containerName := getv (printf "/services/node-config/containers/%s" .)}}{{getv (printf "/hosts/%s/agent_ip" (getv (printf "/containers/%s/hostname" $containerName)))}}
+{{end}}

@@ -1,0 +1,6 @@
+[template]
+src = "httpfs-signature.secret"
+dest = "/etc/hadoop/httpfs-signature.secret"
+owner = "hadoop"
+mode = "0644"
+keys = []
