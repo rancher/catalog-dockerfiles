@@ -1,0 +1,6 @@
+[template]
+src = "configuration.xsl"
+dest = "/etc/hadoop/configuration.xsl"
+owner = "hadoop"
+mode = "0644"
+keys = []

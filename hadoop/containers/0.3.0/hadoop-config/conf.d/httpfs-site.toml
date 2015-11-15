@@ -1,0 +1,6 @@
+[template]
+src = "httpfs-site.xml"
+dest = "/etc/hadoop/httpfs-site.xml"
+owner = "hadoop"
+mode = "0644"
+keys = []

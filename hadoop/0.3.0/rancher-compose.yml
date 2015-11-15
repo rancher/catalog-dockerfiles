@@ -1,0 +1,91 @@
+namenode-config:
+  scale: 1
+  metadata:
+    users:
+      - hadoop
+      - spark
+    core-site:
+      hadoop.proxyuser.hue.hosts: "*"
+      hadoop.proxyuser.hue.groups: "*"
+    hdfs-site:
+      dfs.replication: "1"
+      dfs.webhdfs.enabled: "true"
+    yarn-site:
+      yarn.nodemanager.resource.cpu-vcores: "8"
+      yarn.nodemanager.resource.memory-mb: "8192"
+      yarn.log-aggregation-enable: "true"
+      yarn.log-aggregation.retain-seconds: 10800
+      yarn.log-aggregation.retain-check-interval-seconds: 3600
+    mapred-site:
+      mapreduce.child.java.opts: "-Xmx1024m"
+      mapreduce.map.memory.mb: "1536"
+      mapreduce.reduce.memory.mb: "3072"
+      mapreduce.task.io.sort.mb: "512"
+      mapreduce.task.io.sort.factor: "100"
+      mapreduce.reduce.shuffle.parallelcopies: "50"
+node-config:
+  scale: 1
+  metadata:
+    core-site:
+      hadoop.proxyuser.hue.hosts: "*"
+      hadoop.proxyuser.hue.groups: "*"
+    hdfs-site:
+      dfs-replication: "1"
+      dfs.webhdfs.enabled: "true"
+    yarn-site:
+      yarn.nodemanager.resource.cpu-vcores: "8"
+      yarn.nodemanager.resource.memory-mb: "8192"
+      yarn.log-aggregation-enable: "true"
+      yarn.log-aggregation.retain-seconds: 10800
+      yarn.log-aggregation.retain-check-interval-seconds: 3600
+    mapred-site:
+      mapreduce.child.java.opts: "-Xmx1024m"
+      mapreduce.map.memory.mb: "1536"
+      mapreduce.reduce.memory.mb: "3072"
+      mapreduce.task.io.sort.mb: "512"
+      mapreduce.task.io.sort.factor: "100"
+      mapreduce.reduce.shuffle.parallelcopies: "50"
+yarn-resourcemanager-config:
+  scale: 1
+  metadata:
+    core-site:
+      hadoop.proxyuser.hue.hosts: "*"
+      hadoop.proxyuser.hue.groups: "*"
+    hdfs-site:
+      dfs-replication: "1"
+      dfs.webhdfs.enabled: "true"
+    yarn-site:
+      yarn.nodemanager.resource.cpu-vcores: "8"
+      yarn.nodemanager.resource.memory-mb: "8192"
+      yarn.log-aggregation-enable: "true"
+      yarn.log-aggregation.retain-seconds: 10800
+      yarn.log-aggregation.retain-check-interval-seconds: 3600
+    mapred-site:
+      mapreduce.child.java.opts: "-Xmx1024m"
+      mapreduce.map.memory.mb: "1536"
+      mapreduce.reduce.memory.mb: "3072"
+      mapreduce.task.io.sort.mb: "512"
+      mapreduce.task.io.sort.factor: "100"
+      mapreduce.reduce.shuffle.parallelcopies: "50"
+jobhistory-config:
+  scale: 1
+  metadata:
+    core-site:
+      hadoop.proxyuser.hue.hosts: "*"
+      hadoop.proxyuser.hue.groups: "*"
+    hdfs-site:
+      dfs-replication: "1"
+      dfs.webhdfs.enabled: "true"
+    yarn-site:
+      yarn.nodemanager.resource.cpu-vcores: "8"
+      yarn.nodemanager.resource.memory-mb: "8192"
+      yarn.log-aggregation-enable: "true"
+      yarn.log-aggregation.retain-seconds: 10800
+      yarn.log-aggregation.retain-check-interval-seconds: 3600
+    mapred-site:
+      mapreduce.child.java.opts: "-Xmx1024m"
+      mapreduce.map.memory.mb: "1536"
+      mapreduce.reduce.memory.mb: "3072"
+      mapreduce.task.io.sort.mb: "512"
+      mapreduce.task.io.sort.factor: "100"
+      mapreduce.reduce.shuffle.parallelcopies: "50"

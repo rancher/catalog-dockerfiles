@@ -1,0 +1,194 @@
+sl-nn-config:
+  image: rancher/hadoop-followers-config:v0.3.0
+  net: "container:namenode-config"
+  volumes:
+    - '${stack}-namenode-primary-config:/etc/hadoop'
+namenode-config:
+  image: rancher/hadoop-config:v0.3.0
+  volumes:
+    - '${stack}-namenode-primary-config:/etc/hadoop'
+  labels:
+    io.rancher.sidekicks: sl-nn-config
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+    io.rancher.container.dns: true
+
+namenode-primary:
+  image: rancher/hadoop-base:v0.2.0
+  command: 'su -c "sleep 15 && /usr/local/hadoop-2.7.1/bin/hdfs namenode" hdfs'
+  net: host
+  volumes:
+    - '${stack}-namenode-primary-config:/etc/hadoop'
+  volumes_from:
+    - nodename-primary-data
+  ports:
+    - 50070:50070
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:container_label: io.rancher.stack_service.name=$${stack_name}/namenode-config
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+    io.rancher.sidekicks: nodename-primary-data, bootstrap-hdfs
+    io.rancher.container.dns: true
+nodename-primary-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  command: /bin/true
+  volumes:
+    - '${stack}-namenode-primary-config:/etc/hadoop'
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.container.start_once: true
+bootstrap-hdfs:
+  image: rancher/hadoop-base:v0.2.0
+  net: host
+  labels:
+    io.rancher.container.start_once: true
+    io.rancher.scheduler.affinity:container_label: io.rancher.stack_service.name=$${stack_name}/namenode-config
+  command: 'su -c "sleep 20 && exec /bootstrap-hdfs.sh" hdfs'
+  volumes:
+    - '${stack}-namenode-primary-config:/etc/hadoop'
+
+node-config:
+  image: rancher/hadoop-config:v0.3.0
+  volumes:
+    - '${stack}-hadoop-node-config:/etc/hadoop'
+  labels:
+    io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/namenode-config
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/node-config
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+
+datanode-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  volumes:
+    - '${stack}-hadoop-node-config:/etc/hadoop'
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+datanode:
+  image: rancher/hadoop-base:v0.2.0
+  net: host
+  volumes:
+    - '${stack}-hadoop-node-config:/etc/hadoop'
+  volumes_from:
+    - datanode-data
+  labels:
+    io.rancher.sidekicks: datanode-data
+    io.rancher.container.dns: true
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+    io.rancher.scheduler.affinity:container_label: io.rancher.stack_service.name=$${stack_name}/node-config
+    io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/datanode
+  links:
+    - 'namenode-primary:namenode'
+    - 'yarn-resourcemanager:yarn-rm'
+  command: 'su -c "sleep 45 && exec /usr/local/hadoop-2.7.1/bin/hdfs datanode" hdfs'
+
+yarn-nodemanager-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  volumes:
+    - '${stack}-hadoop-node-config:/etc/hadoop'
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+yarn-nodemanager:
+  image: rancher/hadoop-base:v0.2.0
+  net: host
+  volumes:
+    - '${stack}-hadoop-node-config:/etc/hadoop'
+  volumes_from:
+    - yarn-nodemanager-data
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.sidekicks: yarn-nodemanager-data
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+    io.rancher.scheduler.affinity:container_label: io.rancher.stack_service.name=$${stack_name}/node-config
+    io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/yarn-nodemanager
+    io.rancher.container.dns: true
+  links:
+    - 'namenode-primary:namenode'
+    - 'yarn-resourcemanager:yarn-rm'
+  command: 'su -c "sleep 45 && exec /usr/local/hadoop-2.7.1/bin/yarn nodemanager" yarn'
+
+jobhistory-server-config:
+  image: rancher/hadoop-config:v0.3.0
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:container_label_soft: io.rancher.stack_service.name=$${stack_name}/yarn-resourcemanager-config
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+  volumes:
+    - '${stack}-jobhistory-server-config:/etc/hadoop'
+
+jhs-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  volumes:
+    - '${stack}-jobhistory-server-config:/etc/hadoop'
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+jobhistory-server:
+  image: rancher/hadoop-base:v0.2.0
+  volumes:
+    - '${stack}-jobhistory-server-config:/etc/hadoop'
+  volumes_from:
+    - jhs-data
+  links:
+    - 'namenode-primary:namenode'
+    - 'yarn-resourcemanager:yarn-rm'
+  net: host
+  labels:
+    io.rancher.sidekicks: jhs-data
+    io.rancher.container.dns: true
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+    io.rancher.scheduler.affinity:container_label: io.rancher.stack_service.name=$${stack_name}/jobhistory-server-config
+  command: 'su -c "sleep 45 && /usr/local/hadoop-2.7.1/bin/mapred historyserver" mapred'
+
+yarn-resourcemanager-config:
+  image: rancher/hadoop-config:v0.3.0
+  volumes:
+    - '${stack}-yarn-resourcemanager-config:/etc/hadoop'
+  labels:
+    io.rancher.sidekicks: sl-yrm-config
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+sl-yrm-config:
+  image: rancher/hadoop-followers-config:v0.3.0
+  net: "container:yarn-resourcemanager-config"
+  volumes:
+    - '${stack}-yarn-resourcemanager-config:/etc/hadoop'
+
+yarn-resourcemanager-data:
+  image: rancher/hadoop-base:v0.2.0
+  net: none
+  volumes:
+    - '${stack}-yarn-resourcemanager-config:/etc/hadoop'
+  labels:
+    io.rancher.container.start_once: true
+  command: '/bin/true'
+yarn-resourcemanager:
+  image: rancher/hadoop-base:v0.2.0
+  net: host
+  volumes:
+    - '${stack}-yarn-resourcemanager-config:/etc/hadoop'
+  volumes_from:
+    - yarn-resourcemanager-data
+  links:
+    - 'namenode-primary:namenode'
+    - 'jobhistory-server:jhserver'
+  labels:
+    io.rancher.sidekicks: yarn-resourcemanager-data
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:container_label: io.rancher.stack_service.name=$${stack_name}/yarn-resourcemanager-config
+    io.rancher.scheduler.affinity:host_label_soft: rancher.catalog.hadoop=true
+    io.rancher.scheduler.affinity:host_label_ne: rancher.catalog.hadoop=false
+    io.rancher.container.dns: true
+  command: 'su -c "sleep 30 && /usr/local/hadoop-2.7.1/bin/yarn resourcemanager" yarn'

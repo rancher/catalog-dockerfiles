@@ -1,0 +1,6 @@
+[template]
+src = "kms-site.xml"
+dest = "/etc/hadoop/kms-site.xml"
+owner = "hadoop"
+mode = "0644"
+keys = []

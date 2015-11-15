@@ -1,0 +1,6 @@
+[template]
+src = "kms-env.sh"
+dest = "/etc/hadoop/kms-env.sh"
+owner = "hadoop"
+mode = "0644"
+keys = []
