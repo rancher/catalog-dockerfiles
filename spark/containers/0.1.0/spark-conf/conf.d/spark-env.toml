@@ -1,0 +1,7 @@
+[template]
+src="spark-env.sh.tmpl"
+dest="/etc/spark/spark-env.sh"
+mode="0755"
+keys= [
+    "/self",
+]

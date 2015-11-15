@@ -1,0 +1,45 @@
+spark-master:
+  image: rancher/spark:1.5.2-1
+  command: "/start_spark.sh master"
+  volumes_from:
+    - spark-data
+  ports:
+    - 8080:8080
+  external_links:
+    - zookeeper/zookeeper:zookeeper
+  labels:
+    io.rancher.sidekicks: spark-data,spark-config-master
+    io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+    io.rancher.container.hostname_override: container_name
+spark-config-master:
+  image: rancher/spark-conf:v0.1.0
+  net: "container:spark-master"
+  volumes_from:
+    - spark-data
+
+spark-worker:
+  image: rancher/spark:1.5.2-1
+  command: "bash -x /start_spark.sh worker"
+  links:
+    - spark-master:spark-master
+  ports:
+    - 8081:8081
+  volumes_from:
+    - spark-data
+  labels:
+    io.rancher.sidekicks: spark-data,spark-config-worker
+    io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+    io.rancher.container.hostname_override: container_name
+spark-config-worker:
+  image: rancher/spark-conf:v0.1.0
+  net: "container:spark-worker"
+  volumes_from:
+    - spark-data
+
+spark-data:
+  image: rancher/spark:1.5.2-1
+  net: none
+  command: /work_dir_setup.sh
+  user: root
+  labels:
+    io.rancher.container.start_once: true

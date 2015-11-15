@@ -1,0 +1,5 @@
+export SPARK_LOCAL_IP="{{getv "/self/container/primary_ip"}}"
+
+{{if exists "/self/service/metadata/spark-env"}}
+{{getv "/self/service/metadata/spark-env"}}
+{{end}}
