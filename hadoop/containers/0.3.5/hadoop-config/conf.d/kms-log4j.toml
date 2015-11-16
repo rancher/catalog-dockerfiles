@@ -1,0 +1,6 @@
+[template]
+src = "kms-log4j.properties"
+dest = "/etc/hadoop/kms-log4j.properties"
+owner = "hadoop"
+mode = "0644"
+keys = []

@@ -1,0 +1,6 @@
+[template]
+src = "hadoop-metrics2.properties"
+dest = "/etc/hadoop/hadoop-metrics2.properties"
+owner = "hadoop"
+mode = "0644"
+keys = []

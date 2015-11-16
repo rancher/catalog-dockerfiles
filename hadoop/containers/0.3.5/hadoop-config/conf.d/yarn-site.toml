@@ -1,0 +1,11 @@
+[template]
+src = "yarn-site.xml.tmpl"
+dest = "/etc/hadoop/yarn-site.xml"
+owner = "hadoop"
+mode = "0644"
+keys = [
+    "/self",
+    "/services",
+    "/containers",
+    "/hosts",
+]

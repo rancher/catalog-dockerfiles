@@ -1,0 +1,11 @@
+[template]
+src = "mapred-site.xml.tmpl"
+dest = "/etc/hadoop/mapred-site.xml"
+owner = "hadoop"
+mode = "0644"
+keys = [
+    "/self",
+    "/services",
+    "/containers",
+    "/hosts",
+]
