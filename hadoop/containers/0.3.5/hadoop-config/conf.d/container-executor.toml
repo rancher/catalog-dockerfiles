@@ -1,0 +1,6 @@
+[template]
+src = "container-executor.cfg"
+dest = "/etc/hadoop/container-executor.cfg"
+owner = "hadoop"
+mode = "0644"
+keys = []

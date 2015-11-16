@@ -1,0 +1,6 @@
+[template]
+src = "hadoop-policy.xml"
+dest = "/etc/hadoop/hadoop-policy.xml"
+owner = "hadoop"
+mode = "0644"
+keys = []

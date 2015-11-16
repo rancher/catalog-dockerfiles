@@ -1,0 +1,6 @@
+[template]
+src = "mapred-env.sh"
+dest = "/etc/hadoop/mapred-env.sh"
+owner = "hadoop"
+mode = "0644"
+keys = []

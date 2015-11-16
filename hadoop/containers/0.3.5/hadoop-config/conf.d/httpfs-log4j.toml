@@ -1,0 +1,6 @@
+[template]
+src = "httpfs-log4j.properties"
+dest = "/etc/hadoop/httpfs-log4j.properties"
+owner = "hadoop"
+mode = "0644"
+keys = []

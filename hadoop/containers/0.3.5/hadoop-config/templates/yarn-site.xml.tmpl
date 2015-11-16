@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- yarn-site.xml -->
+<configuration>
+  <property>
+    <name>yarn.resourcemanager.hostname</name>
+    <value>{{getv (printf "/containers/%s/primary_ip" (getv "/services/yarn-resourcemanager/containers/0"))}}</value>
+  </property>
+
+  <property>
+    <name>yarn.resourcemanager.admin.address</name>
+    <value>{{getv (printf "/containers/%s/primary_ip" (getv "/services/yarn-resourcemanager/containers/0"))}}:8033</value>
+  </property>
+
+  <property>
+    <name>yarn.resourcemanager.address</name>
+    <value>{{getv (printf "/containers/%s/primary_ip" (getv "/services/yarn-resourcemanager/containers/0"))}}:8032</value>
+  </property>
+
+  <property>
+    <name>yarn.resourcemanager.scheduler.address</name>
+    <value>{{getv (printf "/containers/%s/primary_ip" (getv "/services/yarn-resourcemanager/containers/0"))}}:8030</value>
+  </property>
+
+  <property>
+    <name>yarn.resourcemanager.resource-tracker.address</name>
+    <value>{{getv (printf "/containers/%s/primary_ip" (getv "/services/yarn-resourcemanager/containers/0"))}}:8031</value>
+  </property>
+ 
+  {{ if (eq (getv "/self/service/name") "yarn-resourcemanager") }}
+  <property>
+    <name>yarn.resourcemanager.bind-host</name>
+    <value>{{getv "/self/container/primary_ip"}}</value>
+  </property>
+  {{end}}
+
+  {{ if (eq (getv "/self/service/name") "yarn-nodemanager") }}
+  <property>
+    <name>yarn.nodemanager.address</name>
+    <value>{{getv "/self/container/primary_ip"}}</value>
+  </property>
+  {{end}}
+
+  <!-- Metadata based properties -->
+{{if (gt (len (ls "/self/service/metadata/yarn-site")) 0)}}{{range ls "/self/service/metadata/yarn-site"}}  <property>
+    <name>{{.}}</name>
+    <value>{{getv (printf "/self/service/metadata/yarn-site/%s" .)}}</value>
+  </property>
+{{end}}{{end}}
+
+</configuration>

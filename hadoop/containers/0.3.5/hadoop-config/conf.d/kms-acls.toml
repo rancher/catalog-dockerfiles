@@ -1,0 +1,6 @@
+[template]
+src = "kms-acls.xml"
+dest = "/etc/hadoop/kms-acls.xml"
+owner = "hadoop"
+mode = "0644"
+keys = []

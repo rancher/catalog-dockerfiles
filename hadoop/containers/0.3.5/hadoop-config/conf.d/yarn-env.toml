@@ -1,0 +1,6 @@
+[template]
+src = "yarn-env.sh"
+dest = "/etc/hadoop/yarn-env.sh"
+owner = "hadoop"
+mode = "0644"
+keys = []
