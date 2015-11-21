@@ -1,0 +1,23 @@
+galera:
+  scale: 3
+  metadata:
+    mysqld: |
+      bind-address = 0.0.0.0
+      innodb_file_per_table = 1
+      innodb_autoinc_lock_mode=2
+      query_cache_size=0
+      query_cache_type=0
+      innodb_flush_log_at_trx_commit=0
+      binlog_format=ROW
+      default-storage-engine=innodb
+      wsrep_provider=/usr/lib/galera/libgalera_smm.so
+      wsrep_sst_method=rsync
+galera-lb:
+  scale: 1
+  load_balancer_config: {}
+  health_check:
+    port: 42
+    interval: 2000
+    unhealthy_threshold: 3
+    healthy_threshold: 2
+    response_timeout: 2000

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+GALERA_CONF='/etc/mysql/conf.d/001-galera.cnf'
+
+echo "Waiting for Config..."
+while [ ! -f "${GALERA_CONF}" ] && [ ! -f "/opt/rancher/lowest_ip" ]; do
+   sleep 1
+done
+echo "Starting galera..."
+
+if [ "$#" -eq "0" ]; then
+    connect_string="--wsrep_cluster_address=gcomm://"
+    if [ "$(grep server-id "${GALERA_CONF}"|cut -d'=' -f2| tr -d '[[:space:]]')" -ne "2" ]; then
+        connect_string="--wsrep_cluster_address=gcomm://$(</opt/rancher/lowest_ip)"
+    fi
+    set -- mysqld "${connect_string}"
+fi 
+
+exec /docker-entrypoint.sh "$@"

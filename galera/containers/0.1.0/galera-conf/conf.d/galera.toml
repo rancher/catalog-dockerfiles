@@ -1,0 +1,6 @@
+[template]
+src="galera.cnf.tmpl"
+dest="/etc/mysql/conf.d/001-galera.cnf"
+keys = [
+  "/self"
+]

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cp /start_galera /opt/rancher/
+
+exec /confd --backend=rancher --prefix=/2015-07-25
