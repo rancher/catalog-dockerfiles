@@ -31,6 +31,8 @@ RUN { \
 	&& apt-get update \
 	&& apt-get install -y \
 		mariadb-galera-server=$MARIADB_VERSION \
+        curl \
+        jq \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& rm -rf /var/lib/mysql \
 	&& mkdir /var/lib/mysql
@@ -44,6 +46,7 @@ RUN sed -Ei 's/^(bind-address|log)/#&/' /etc/mysql/my.cnf \
 VOLUME /var/lib/mysql
 
 COPY docker-entrypoint.sh /
+COPY setup_datadir.sh /
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 

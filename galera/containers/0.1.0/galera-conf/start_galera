@@ -1,18 +1,37 @@
 #!/bin/bash
 
+. /opt/rancher/common.sh
+wait_for_all_service_containers
+
+cd $(dirname $0)
+
 GALERA_CONF='/etc/mysql/conf.d/001-galera.cnf'
 
 echo "Waiting for Config..."
-while [ ! -f "${GALERA_CONF}" ] && [ ! -f "/opt/rancher/lowest_ip" ]; do
+while [ ! -f "${GALERA_CONF}" ] && [ ! -f "/opt/rancher/cluster_ips" ]; do
    sleep 1
 done
 echo "Starting galera..."
 
 if [ "$#" -eq "0" ]; then
-    connect_string="--wsrep_cluster_address=gcomm://"
-    if [ "$(grep server-id "${GALERA_CONF}"|cut -d'=' -f2| tr -d '[[:space:]]')" -ne "2" ]; then
-        connect_string="--wsrep_cluster_address=gcomm://$(</opt/rancher/lowest_ip)"
+    bootstrap="false"
+
+    /opt/rancher/lowest_idx.sh
+    if [ "$?" -eq "0" ] && [ ! -f '/opt/rancher/initialized' ]; then
+        bootstrap="true"
     fi
+
+    connect_string="--wsrep_cluster_address=gcomm://$(tr '\n' ',' <cluster_ips|sed 's/,.$//')"
+    if [ "${bootstrap}" = "true" ]; then
+        connect_string="--wsrep_cluster_address=gcomm://"
+        touch /opt/rancher/initialized
+    fi
+
+    ## Incase this is the initial startup.
+    if [ "${bootstrap}" = "false" ]; then
+        random_sleep
+    fi
+
     set -- mysqld "${connect_string}"
 fi 
 

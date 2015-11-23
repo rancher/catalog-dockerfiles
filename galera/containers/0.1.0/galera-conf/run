@@ -1,5 +1,9 @@
 #!/bin/bash
 
-cp /start_galera /opt/rancher/
+cp /start_galera /lowest_idx.sh /common.sh /opt/rancher/
+. /opt/rancher/common.sh
+
+sleep 10
+wait_for_all_service_containers
 
 exec /confd --backend=rancher --prefix=/2015-07-25

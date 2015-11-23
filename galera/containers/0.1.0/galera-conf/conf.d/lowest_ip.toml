@@ -1,7 +1,0 @@
-[template]
-src="lowest_ip.tmpl"
-dest="/opt/rancher/lowest_ip"
-keys = [
-  "/self",
-  "/containers",
-]

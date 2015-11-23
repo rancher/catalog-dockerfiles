@@ -1,7 +1,9 @@
 [mysqld]
 server-id = {{getv "/self/container/create_index"}}
 log-bin = /var/log/mysql/mariadb-bin.index
+bind-address = {{getv "/self/container/primary_ip"}}
 report_host = {{getv "/self/container/name"}}
+wsrep_node_name = {{getv "/self/container/name"}}
 wsrep_cluster_name="{{getv "/self/stack/name"}}"
 
 # User supplied configs

@@ -4,10 +4,6 @@ mariadb-galera-server:
   environment:
     TERM: "xterm"
     MYSQL_ROOT_PASSWORD: "password"
-    MYSQL_DATABASE: "cattle"
-    MYSQL_USER: "cattle"
-    MYSQL_PASSWORD: "cattle"
-    REPLICATION_PASSWORD: "password"
   volumes_from:
     - 'mariadb-galera-data'
   labels:

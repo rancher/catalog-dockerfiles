@@ -1,9 +1,8 @@
 FROM alpine:3.2
 
-RUN apk add --update bash curl && rm -rf /var/cache/apk/*
+RUN apk add --update bash curl jq && rm -rf /var/cache/apk/*
 
-ADD ./run /
-ADD ./start_galera /
+ADD ./run ./start_galera ./lowest_idx.sh ./common.sh /
 
 # Confd
 ADD ./conf.d /etc/confd/conf.d
