@@ -1,0 +1,45 @@
+mariadb-galera-server:
+  image: rancher/galera:10.0.22-rancher1
+  net: "container:galera"
+  environment:
+    TERM: "xterm"
+    MYSQL_ROOT_PASSWORD: "password"
+  volumes_from:
+    - 'mariadb-galera-data'
+  labels:
+    io.rancher.container.hostname_override: container_name
+  entrypoint: /opt/rancher/start_galera
+mariadb-galera-data:
+  image: rancher/galera:10.0.22-rancher1
+  net: none
+  environment:
+    MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+  volumes:
+    - /var/lib/mysql
+    - /etc/mysql/conf.d
+    - /docker-entrypoint-initdb.d
+    - /opt/rancher
+  command: /bin/true
+  labels:
+    io.rancher.container.start_once: true
+galera:
+  image: rancher/galera-conf:v0.1.0
+  labels:
+    io.rancher.container.start_once: true
+    io.rancher.sidekicks: mariadb-galera-data,mariadb-galera-server
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+  volumes_from:
+    - 'mariadb-galera-data'
+  stdin_open: true
+  tty: true
+  command: /bin/bash
+
+galera-lb:
+  expose:
+  - 3306:3306/tcp
+  tty: true
+  image: rancher/load-balancer-service
+  links:
+  - galera:galera
+  stdin_open: true
