@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# Installing dnsutils and jq
-echo "deb http://http.debian.net/debian wheezy-backports main" | tee /etc/apt/sources.list.d/wheezy-backports.list > /dev/null
-apt-get -q update > /dev/null
-apt-get install -qqy jq > /dev/null 2>&1
-
 # Check for lowest ID
+sleep 10
 /opt/rancher/bin/lowest_idx.sh
 if [ "$?" -eq "0" ]; then
     echo "This is the lowest numbered contianer.. Handling the initiation."
