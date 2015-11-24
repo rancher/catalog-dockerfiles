@@ -1,5 +1,5 @@
 #!/bin/bash
-DIG=/usr/bin/dig
+DIG=/opt/rancher/bin/dig
 
 function cluster_init {
 	sleep 10

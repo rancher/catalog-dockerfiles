@@ -1,6 +1,6 @@
 #!/bin/bash
 sleep 5
-DIG=/usr/bin/dig
+DIG=/opt/rancher/bin/dig
 
 function scaleup {
 	MYIP=$(ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1 |  sed -n 2p)
