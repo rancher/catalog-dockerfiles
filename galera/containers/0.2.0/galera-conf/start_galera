@@ -1,0 +1,57 @@
+#!/bin/bash
+
+cd $(dirname $0)
+
+## Sometimes you need to...
+random_sleep()
+{
+    SLEEP_TIME=$RANDOM
+    let "SLEEP_TIME %= 15"
+    sleep ${SLEEP_TIME}
+}
+
+mysql_cluster_check()
+{
+    val="notok"
+    count=$(mysql -uroot -p${MYSQL_ROOT_PASSWORD} -hgalera-lb -N -e 'show databases;'| wc -l) 
+    if [ "${count}" -ne "0" ]; then
+        val="ok"
+    fi
+    echo "${val}"
+}
+
+./giddyup service wait scale
+
+
+
+GALERA_CONF='/etc/mysql/conf.d/001-galera.cnf'
+
+echo "Waiting for Config..."
+while [ ! -f "${GALERA_CONF}" ]; do 
+   sleep 1
+done
+echo "Starting galera..."
+
+if [ "$#" -eq "0" ]; then
+    leader="false"
+
+    ./giddyup leader check
+    if [ "$?" -eq "0" ]; then 
+        leader="true"
+    fi
+
+    connect_string="--wsrep_cluster_address=gcomm://$(./giddyup ip stringify)?pc.wait_prim=no"
+    if [ "${leader}" = "true" ] && [ ! -f "/opt/rancher/initialized" ]; then
+        connect_string="--wsrep_cluster_address=gcomm://"
+        touch /opt/rancher/initialized
+    fi
+
+    ## Incase this is the initial startup.
+    if [ "${leader}" = "false" ]; then
+        random_sleep
+    fi
+
+    set -- mysqld "${connect_string}"
+fi 
+
+exec /docker-entrypoint.sh "$@"

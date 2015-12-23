@@ -1,0 +1,13 @@
+[mysqld]
+server-id = {{getv "/self/container/create_index"}}
+log-bin = /var/log/mysql/mariadb-bin.index
+bind-address = {{getv "/self/container/primary_ip"}}
+max_connections = 1000
+report_host = {{getv "/self/container/name"}}
+wsrep_node_name = {{getv "/self/container/name"}}
+wsrep_cluster_name="{{getv "/self/stack/name"}}"
+
+# User supplied configs
+{{if exists "/self/service/metadata/mysqld"}}
+{{getv "/self/service/metadata/mysqld"}}
+{{end}}
