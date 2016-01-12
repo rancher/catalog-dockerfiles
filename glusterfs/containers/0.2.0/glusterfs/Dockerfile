@@ -20,7 +20,7 @@ EXPOSE 24008/udp
 EXPOSE 49152
 
 # Add Giddyup
-ADD https://github.com/cloudnautique/giddyup/releases/download/v0.4.0/giddyup /giddyup
+ADD https://github.com/cloudnautique/giddyup/releases/download/v0.5.0/giddyup /giddyup
 RUN chmod +x /giddyup
 
 # Add Tini
