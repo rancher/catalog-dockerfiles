@@ -9,8 +9,12 @@
  In this case, think of the `stack` as the trusted storage pool with a single volume. Multiple volumes would be deployed via multiple stacks.
  
 The volume will then be mountable as a glusterfs volume.
+
+## Notes
+
+The Stack is not upgradeable between versions, until Rancher supports IP reuse. All new containers get the same IP.
  
- ## How to Use
+## How to Use
  
  Launch a new stack with the desired replica count set as `scale` in rancher-compose.yml.
  
@@ -33,14 +37,14 @@ glusterfs-server:
   ...
 ```
 
-bring up the cluster with rancher-compose
+bring up the cluster with rancher-compose, if you would like to use Rancher networking use the setting `network_mode='container:glusterfs-peer'` if you would like to mount Gluster from systems outside of Rancher, use `network_mode=host`. When running on the 'host' network, you need to ensure you are running on a secure network otherwise others could gain access to your data. 
 
-`rancher-compose -p gluster up`
+`network_mode=<network_mode> rancher-compose -p gluster up`
 
 Once the volume is up you can mount it from a client with:
 `mount -t glusterfs <ip of gluster node>:/my_volume /mnt`
 
-*Note: Mounting inside a docker container needs `--cap-add SYS_ADMIN --device /dev/fuse:/dev/fuse:rwm ` On the 3.19.x kernel in Ubuntu, there is a bug with Apparmor, that requires the client container have `--privileged` options.
+*Note: Mounting inside a docker container, it needs `--cap-add SYS_ADMIN --device /dev/fuse:/dev/fuse:rwm ` On the 3.19.x kernel in Ubuntu, there is a bug with Apparmor, that requires the client container have `--privileged` options.
 
 
 
