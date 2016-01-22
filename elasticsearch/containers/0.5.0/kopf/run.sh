@@ -14,7 +14,7 @@ KOPF_WITH_CREDENTIALS="${KOPF_WITH_CREDENTIALS:-false}"
 
 cat <<EOF > /kopf/_site/kopf_external_settings.json
 {
-    "elasticsearch_root_path": "/es",
+    "elasticsearch_root_path": "/es/",
     "with_credentials": ${KOPF_WITH_CREDENTIALS},
     "theme": "${KOPF_THEME}",
     "refresh_rate": ${KOPF_REFRESH_RATE}
