@@ -1,0 +1,19 @@
+drone-lb:
+  scale: 1
+  load_balancer_config:
+    haproxy_config: {}
+  health_check:
+    port: 42
+    interval: 2000
+    unhealthy_threshold: 3
+    healthy_threshold: 2
+    response_timeout: 2000
+drone-server:
+  scale: 1
+  metadata:
+    remote_driver: ${remote_driver}
+    remote_config: "${remote_config}"
+    database_driver: ${database_driver}
+    database_config: "${database_config}"
+    http_proxy_on: false
+    debug: true
