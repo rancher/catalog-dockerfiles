@@ -1,0 +1,13 @@
+export REMOTE_DRIVER={{ getv "/self/service/metadata/remote_driver" }}
+export REMOTE_CONFIG="{{ getv "/self/service/metadata/remote_config" }}"
+export DATABASE_DRIVER="{{ getv "/self/service/metadata/database_driver" }}"
+export DATABASE_CONFIG="{{ getv "/self/service/metadata/database_config" }}"
+export DEBUG={{ getv "/self/service/metadata/debug" }}
+
+{{ if (eq "/self/service/metadata/http_proxy_on" "true") }} 
+export HTTPS_PROXY={{ getv "/self/service/metadata/https_proxy" }}
+export https_proxy={{ getv "/self/service/metadata/https_proxy" }}
+export HTTP_PROXY={{ getv "/self/service/metadata/http_proxy" }}
+export http_proxy={{ getv "/self/service/metadata/http_proxy" }}
+export NO_PROXY={{ getv "/self/service/metadata/noproxy" }}
+{{end}}
