@@ -1,0 +1,18 @@
+{
+    {{ if (eq (getv "/self/container/service_index") "1") }}"bootstrap": true,{{else}}
+    "retry_join": [{{ $containerName := getv "/self/service/containers/0"}}"{{getv (printf "/containers/%s/primary_ip" $containerName)}}"],
+    "bootstrap": false,{{end}}
+    "server": true,
+    "datacenter": "dc1",
+    "advertise_addr": "{{getv "/self/container/primary_ip"}}",
+    "bind_addr": "{{getv "/self/container/primary_ip"}}",
+    "client_addr": "{{getv "/self/container/primary_ip"}}",
+    "data_dir": "/var/consul",
+    "encrypt": "{{getv "/services/consul/metadata/enc.key"}}",
+    "ca_file": "/opt/rancher/ssl/ca.crt",
+    "cert_file": "/opt/rancher/ssl/consul.crt",
+    "key_file": "/opt/rancher/ssl/consul.key",
+    "verify_incoming": true,
+    "verify_outgoing": true,
+    "log_level": "INFO"
+}
