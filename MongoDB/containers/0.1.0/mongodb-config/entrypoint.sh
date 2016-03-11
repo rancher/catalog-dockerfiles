@@ -2,7 +2,7 @@
 
 # Check for lowest ID
 sleep 10
-/opt/rancher/bin/lowest_idx.sh
+/opt/rancher/bin/giddyup leader check
 if [ "$?" -eq "0" ]; then
     echo "This is the lowest numbered contianer.. Handling the initiation."
     /opt/rancher/bin/initiate.sh $@
