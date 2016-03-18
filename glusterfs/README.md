@@ -37,7 +37,7 @@ glusterfs-server:
   ...
 ```
 
-bring up the cluster with rancher-compose, if you would like to use Rancher networking use the setting `network_mode='container:glusterfs-peer'` if you would like to mount Gluster from systems outside of Rancher, use `network_mode=host`. When running on the 'host' network, you need to ensure you are running on a secure network otherwise others could gain access to your data. 
+bring up the cluster with rancher-compose, if you would like to use Rancher networking use the setting `network_mode='container:glusterfs-server'` if you would like to mount Gluster from systems outside of Rancher, use `network_mode=host`. When running on the 'host' network, you need to ensure you are running on a secure network otherwise others could gain access to your data. 
 
 `network_mode=<network_mode> rancher-compose -p gluster up`
 
