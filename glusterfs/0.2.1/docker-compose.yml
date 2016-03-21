@@ -13,7 +13,7 @@ glusterfs-server:
   command: glusterd -p /var/run/gluster.pid --no-daemon --log-file=-
 glusterfs-probe:
   image: llparse/glusterfs:v0.2.1
-  net: container:glusterfs-server
+  net: ${network_mode}
   volumes_from:
     - glusterfs-data
   labels:
@@ -22,7 +22,7 @@ glusterfs-probe:
 glusterfs-volume-create:
   image: llparse/glusterfs:v0.2.1
   command: /opt/rancher/replicated_volume_create.sh ${network_mode}
-  net: container:glusterfs-server
+  net: ${network_mode}
   volumes_from:
     - glusterfs-data
   labels:
