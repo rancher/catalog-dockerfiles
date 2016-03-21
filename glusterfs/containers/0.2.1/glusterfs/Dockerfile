@@ -19,14 +19,6 @@ EXPOSE 24008
 EXPOSE 24008/udp
 EXPOSE 49152
 
-# Add Giddyup
-ADD https://github.com/cloudnautique/giddyup/releases/download/v0.5.0/giddyup /giddyup
-RUN chmod +x /giddyup
-
-# Add Tini
-ENV TINI_VERSION v0.8.4
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-
-CMD ["glusterd", "-p", "/var/run/glusterd.pid", "-N"]
+# Add Giddyup v0.8.0
+ADD giddyup /usr/bin/giddyup
+RUN chmod +x /usr/bin/giddyup

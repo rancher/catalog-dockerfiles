@@ -3,7 +3,7 @@
 . /opt/rancher/common.sh
 
 echo "Waiting for all service containers to start..."
-/giddyup service wait scale --timeout=1200
+giddyup service wait scale --timeout=1200
 
 echo "Containers are starting..."
 
@@ -19,7 +19,7 @@ peer_probe()
     peer_wait_hosts
     while true; do
         PEER_COUNT=$(gluster pool list|grep -v UUID|wc -l)
-        if [ "$(/giddyup service scale)" -ne "${PEER_COUNT}" ]; then
+        if [ "$(giddyup service scale)" -ne "${PEER_COUNT}" ]; then
             echo "Unprobed nodes detected"
             peer_probe_hosts
         fi
@@ -31,10 +31,10 @@ peer_wait_hosts()
 {
     ready=false
     while [ "$ready" != true ]; do
-        echo "Waiting for Gluster Daemons to come up"
+        echo "waiting for the daemons"
         sleep 5
         ready=true
-        for peer in $(/giddyup service containers -n); do
+        for peer in $(giddyup service containers -n); do
             IP=$(${IP_METHOD} ${peer})
             timeout $TCP_TIMEOUT bash -c ">/dev/tcp/$IP/$DAEMON_PORT"
             if [ "$?" -ne "0" ]; then
@@ -47,7 +47,7 @@ peer_wait_hosts()
 
 peer_probe_hosts()
 {
-    for peer in $(/giddyup service containers --exclude-self -n);do
+    for peer in $(giddyup service containers --exclude-self -n);do
         IP=$(${IP_METHOD} ${peer})
         echo gluster peer probe ${IP}
         gluster peer probe ${IP}
@@ -55,11 +55,24 @@ peer_probe_hosts()
     done
 }
 
-/giddyup leader check
-if [ "$?" -eq "0" ]; then
-    echo "I am the leader"
-    peer_probe
-else
-    echo "I am NOT the leader, going to sleep."
-    while true; do sleep 60000; done
-fi
+random_sleep()
+{
+    SLEEP_TIME=$RANDOM
+    let "SLEEP_TIME %= 30"
+    sleep ${SLEEP_TIME}
+}
+
+probe_election()
+{
+    while true; do
+        echo "Checking leader status"
+        giddyup leader check
+        if [ "$?" == "0" ]; then
+            echo "Elected as leader"
+            peer_probe
+        fi
+        random_sleep
+    done
+}
+
+probe_election

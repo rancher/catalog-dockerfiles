@@ -12,21 +12,21 @@ if [ "$1" = "host" ]; then
 fi
 
 echo "Waiting for all containers to come up..."
-/giddyup service wait scale --timeout=1200
+giddyup service wait scale --timeout=1200
 echo "Containers are coming up..."
 
 ALLMETA=$(curl -s -H 'Accept: application/json' ${META_URL})
 VOLUME_NAME=$(echo ${ALLMETA} | jq -r '.self.service.metadata.volume_name')
 BRICK_PATH="/data/glusterfs/brick1"
 VOLUME_PATH="${BRICK_PATH}/${VOLUME_NAME}"
-REPLICA_COUNT=$(/giddyup service scale)
+REPLICA_COUNT=$(giddyup service scale)
 
 if [ ! -f ${VOLUME_PATH} ]; then
     mkdir -p "${VOLUME_PATH}"
 fi
 
 ## Check if this is the Lowest create index
-/giddyup leader check
+giddyup leader check
 if [ "$?" -ne "0" ]; then
     echo "The lowest numbered container handles volume operations... I'm not the lowest"
     sleep 5
@@ -44,7 +44,7 @@ sleep 35
 echo "Getting peer mount points..."
 STATE_READY="true"
 while true; do
-    for container in $(/giddyup service containers -n); do
+    for container in $(giddyup service containers -n); do
         IP=$(${IP_METHOD} ${container})
 
         if [ "$(gluster --remote-host=${IP} pool list | grep Connected | wc -l)" -ne "${REPLICA_COUNT}" ]; then
@@ -59,7 +59,7 @@ while true; do
     fi
     sleep 5
 done
-CONTAINER_MNTS=$(/giddyup ip stringify --delimiter " " --suffix ":${VOLUME_PATH}" ${STRINGIFY_OPTS})
+CONTAINER_MNTS=$(giddyup ip stringify --delimiter " " --suffix ":${VOLUME_PATH}" ${STRINGIFY_OPTS})
 
 if [ "$(gluster volume info ${VOLUME_NAME}|grep 'does\ not\ exist'|wc -l)" -ne "1" ]; then
     echo "Creating volume ${VOLUME_NAME}..."
