@@ -1,5 +1,5 @@
 glusterfs-server:
-  image: llparse/glusterfs:v0.2.1
+  image: rancher/glusterfs:v0.2.1
   cap_add:
     - SYS_ADMIN
   volumes_from:
@@ -12,7 +12,7 @@ glusterfs-server:
     io.rancher.sidekicks: glusterfs-probe,glusterfs-data,glusterfs-volume-create
   command: glusterd -p /var/run/gluster.pid --no-daemon --log-file=-
 glusterfs-probe:
-  image: llparse/glusterfs:v0.2.1
+  image: rancher/glusterfs:v0.2.1
   net: ${network_mode}
   volumes_from:
     - glusterfs-data
@@ -20,7 +20,7 @@ glusterfs-probe:
     io.rancher.container.hostname_override: container_name
   command: /opt/rancher/peerprobe.sh
 glusterfs-volume-create:
-  image: llparse/glusterfs:v0.2.1
+  image: rancher/glusterfs:v0.2.1
   command: /opt/rancher/replicated_volume_create.sh ${network_mode}
   net: ${network_mode}
   volumes_from:
