@@ -33,29 +33,21 @@ if [ "$?" -ne "0" ]; then
     exit 0
 fi
 
-while [ "$(gluster pool list | grep Connected | wc -l)" -lt "${REPLICA_COUNT}" ]; do
-    echo "Waiting for pool..."
-    sleep 5
-done
-
-echo "Waiting for peerprobes and gluster daemons to come on line"
-sleep 35
-
-echo "Getting peer mount points..."
-STATE_READY="true"
+echo "Check all peers in cluster..."
 while true; do
+    STATE_READY="true"
     for container in $(giddyup service containers -n); do
         IP=$(${IP_METHOD} ${container})
-
-        if [ "$(gluster --remote-host=${IP} pool list | grep Connected | wc -l)" -ne "${REPLICA_COUNT}" ]; then
-            echo "Peer mounts not ready...will retry"
+        REPLICA_COUNT=$(giddyup service scale)
+        if [ "$(($(gluster --remote-host=${IP} peer status | grep 'Peer in Cluster' | wc -l) + 1))" -ne "${REPLICA_COUNT}" ]; then
+            echo "Not all peers in cluster...will retry"
             STATE_READY="false"
-            continue
+            break 1
         fi
     done
 
     if [ "${STATE_READY}" = "true" ]; then
-        break
+        break 1
     fi
     sleep 5
 done

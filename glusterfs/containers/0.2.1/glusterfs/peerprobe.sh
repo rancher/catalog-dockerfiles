@@ -14,19 +14,6 @@ if [ "$1" = "host" ]; then
     IP_METHOD=get_host_name
 fi
 
-peer_probe()
-{
-    peer_wait_hosts
-    while true; do
-        PEER_COUNT=$(gluster pool list|grep -v UUID|wc -l)
-        if [ "$(giddyup service scale)" -ne "${PEER_COUNT}" ]; then
-            echo "Unprobed nodes detected"
-            peer_probe_hosts
-        fi
-        sleep 15
-    done
-}
-
 peer_wait_hosts()
 {
     ready=false
@@ -55,24 +42,17 @@ peer_probe_hosts()
     done
 }
 
-random_sleep()
+peer_probe()
 {
-    SLEEP_TIME=$RANDOM
-    let "SLEEP_TIME %= 30"
-    sleep ${SLEEP_TIME}
-}
-
-probe_election()
-{
+    peer_wait_hosts
     while true; do
-        echo "Checking leader status"
-        giddyup leader check
-        if [ "$?" == "0" ]; then
-            echo "Elected as leader"
-            peer_probe
+        PEER_COUNT=$(gluster pool list|grep -v UUID|wc -l)
+        if [ "$(giddyup service scale)" -ne "${PEER_COUNT}" ]; then
+            echo "*** unprobed nodes detected"
+            peer_probe_hosts
         fi
-        random_sleep
+        sleep 15
     done
 }
 
-probe_election
+peer_probe
