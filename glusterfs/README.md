@@ -1,4 +1,4 @@
-# GlusterFS (3.7.5)
+# GlusterFS (3.7.5) Experimental
 
 ---
 
@@ -12,7 +12,7 @@ The volume will then be mountable as a glusterfs volume.
 
 ## Notes
 
-The Stack is not upgradeable between versions, until Rancher supports IP reuse. All new containers get the same IP.
+The Stack is not upgradeable between versions, until Rancher supports IP reuse. All new containers get the same IP. Pool scale up is supported, but should only be attempted after an initial deployment's volume is created. Scale up at your own risk. Volume scale up is unsupported, you will need to manually add bricks for new server containers. Scale down is entirely unsupported and will lead to data loss.
  
 ## How to Use
  
@@ -37,7 +37,7 @@ glusterfs-server:
   ...
 ```
 
-bring up the cluster with rancher-compose, if you would like to use Rancher networking use the setting `network_mode='container:glusterfs-peer'` if you would like to mount Gluster from systems outside of Rancher, use `network_mode=host`. When running on the 'host' network, you need to ensure you are running on a secure network otherwise others could gain access to your data. 
+bring up the cluster with rancher-compose, if you would like to use Rancher networking use the setting `network_mode='container:glusterfs-server'` if you would like to mount Gluster from systems outside of Rancher, use `network_mode=host`. When running on the 'host' network, you need to ensure you are running on a secure network otherwise others could gain access to your data. 
 
 `network_mode=<network_mode> rancher-compose -p gluster up`
 
