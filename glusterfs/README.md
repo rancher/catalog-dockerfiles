@@ -1,4 +1,4 @@
-# GlusterFS (3.7.5)
+# GlusterFS (3.7.5) Experimental
 
 ---
 
@@ -12,7 +12,7 @@ The volume will then be mountable as a glusterfs volume.
 
 ## Notes
 
-The Stack is not upgradeable between versions, until Rancher supports IP reuse. All new containers get the same IP.
+The Stack is not upgradeable between versions, until Rancher supports IP reuse. All new containers get the same IP. Scale up is not supported, do so at your own risk.
  
 ## How to Use
  
