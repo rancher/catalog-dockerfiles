@@ -51,7 +51,7 @@ mysqld: |
 ## Cluster shutdown
 
 If/When a cluster is fully shutdown or stopped, when it comes up it will not elect a leader on its own. You need to
-open a shell to the DB and run: `SET GLOBAL wsrep_provider_options='pc.boostrap=YES';` on the most advanced node.
+open a shell to the DB and run: `SET GLOBAL wsrep_provider_options='pc.bootstrap=YES';` on the most advanced node.
 
 See [Galera documentation](http://galeracluster.com/documentation-webpages/quorumreset.html#id2) for more details.
 
