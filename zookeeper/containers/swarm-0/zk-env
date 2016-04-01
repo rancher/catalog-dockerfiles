@@ -1,0 +1,6 @@
+#!/bin/sh -e
+
+CLASSPATH="/zookeeper/build/classes:/zookeeper/conf"
+for i in /zookeeper/zookeeper-*.jar /zookeeper/lib/*.jar /zookeeper/build/lib/*.jar; do
+  CLASSPATH="$CLASSPATH:$i"
+done
