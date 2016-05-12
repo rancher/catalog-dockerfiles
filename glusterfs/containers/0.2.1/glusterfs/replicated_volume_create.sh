@@ -55,7 +55,14 @@ CONTAINER_MNTS=$(giddyup ip stringify --delimiter " " --suffix ":${VOLUME_PATH}"
 
 if [ "$(gluster volume info ${VOLUME_NAME}|grep 'does\ not\ exist'|wc -l)" -ne "1" ]; then
     echo "Creating volume ${VOLUME_NAME}..."
-    gluster volume create ${VOLUME_NAME} replica ${REPLICA_COUNT} transport tcp ${CONTAINER_MNTS}
+
+    if [ "$REPLICA_COUNT" -gt "1" ]; then
+        REPLICA_ARG="replica ${REPLICA_COUNT}"
+    else
+        REPLICA_ARG=""
+    fi
+
+    gluster volume create ${VOLUME_NAME} ${REPLICA_ARG} transport tcp ${CONTAINER_MNTS}
     sleep 5
 fi
 
