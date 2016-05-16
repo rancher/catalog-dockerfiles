@@ -1,0 +1,9 @@
+[
+  {rabbit,
+    {cluster_nodes,
+{{range ls "/self/service/containers"}}{{ $containerName := getv (printf "/self/service/containers/%s" .)}}
+        {['rabbit@{{printf "%s" $containerName}}'], disc} {{end}}
+    },
+    {loopback_users, []}
+}]
+
