@@ -3,7 +3,8 @@
     {cluster_nodes,
         {[
 {{range $idx, $cnt := gets "/self/service/containers/*"}}{{ if (ne $idx 0) }},{{end}} 'rabbit@{{.Value}}'{{end}}
-         ], disc}     }
+         ], disc}     },
+  {loopback_users, []}
   ]
 }].
 

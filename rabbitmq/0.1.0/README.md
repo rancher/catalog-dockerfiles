@@ -1,7 +1,5 @@
 RabbitMQ 3.6.1 Rancher Docker image
 ===
-**TO BE UPDATED**
-
 This template creates and scales out a simple rabbitmq-3.6.1 cluster.
 
 # How it works
