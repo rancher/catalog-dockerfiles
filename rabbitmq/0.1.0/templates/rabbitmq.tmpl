@@ -1,9 +1,9 @@
 [
-  {rabbit,
+  {rabbit, [
     {cluster_nodes,
-{{range ls "/self/service/containers"}}{{ $containerName := getv (printf "/self/service/containers/%s" .)}}
-        {['rabbit@{{printf "%s" $containerName}}'], disc} {{end}}
-    },
-    {loopback_users, []}
+        {[
+{{range $idx, $cnt := gets "/self/service/containers/*"}}{{ if (ne $idx 0) }},{{end}} 'rabbit@{{.Value}}'{{end}}
+         ], disc}     }
+  ]
 }].
 
