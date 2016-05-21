@@ -1,2 +1,2 @@
-{{if (gt (len (ls "/logstash/patterns")) 0)}}{{range ls "/logstash/patterns"}}{{getv (printf "/logstash/patterns/%s" .)}}
+{{if (gt (len (ls "/self/service/metadata/logstash/patterns")) 0)}}{{range ls "/self/service/metadata/logstash/patterns"}}{{getv (printf "/self/service/metadata/logstash/patterns/%s" .)}}
 {{end}}{{end}}
