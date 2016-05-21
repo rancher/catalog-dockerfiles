@@ -69,8 +69,10 @@ http {
     }
 
     location /es/ {
-      rewrite ^/es/(.*)$ /$1 break;
-      proxy_pass http://es;
+      proxy_pass http://es/;
+    }
+    location = /es {
+      proxy_pass http://es/;
     }
   }
 }
