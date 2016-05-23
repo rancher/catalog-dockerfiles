@@ -1,6 +1,6 @@
 [template]
 src="startup.tmpl"
-dest="/opt/rancher/startup.meta"
+dest="/opt/zookeeper/startup.meta"
 keys = [
   "/self/service"
 ]
