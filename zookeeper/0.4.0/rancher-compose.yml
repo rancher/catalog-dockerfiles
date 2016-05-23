@@ -1,0 +1,57 @@
+.catalog:
+  name: Zookeeper
+  version: 3.4.8-rancher1
+  description: Zookeeper!!!!
+  minimum_rancher_version: v1.0.0
+  maintainer: James Oliver <james@rancher.com>
+  questions:
+    - variable: ZK_ENSEMBLE_SIZE
+      description: Number of Nodes (3, 5, or 7 are good choices)
+      label: Node Count
+      required: true
+      default: 3
+      min: 1
+      max: 7
+      type: int
+    - variable: ZK_HEAP_SIZE
+      description: The amount of memory in megabytes allocated to the jvm heap
+      label: Heap Memory Size (MB)
+      required: true
+      default: 512
+      min: 64
+      max: 4096
+      type: int
+    - variable: ZK_TICK_TIME
+      description: The number of milliseconds of each tick
+      label: Tick Time (ms)
+      required: true
+      default: 2000
+      type: int
+    - variable: ZK_INIT_LIMIT
+      description: The number of ticks that the initial synchronization phase can take
+      label: Initialization Tick Tolerance
+      required: true
+      default: 10
+      type: int
+    - variable: ZK_SYNC_LIMIT
+      description: The umber of ticks that can pass between sending a request and getting an acknowledgement
+      label: Synchronization Tick Tolerance
+      required: true
+      default: 5
+      type: int
+    - variable: ZK_MAX_CLIENT_CXNS
+      description: The maximum number of accepted client connections
+      label: Max Client Connections
+      required: true
+      default: 60
+      type: int
+zookeeper:
+  scale: ${ZK_ENSEMBLE_SIZE}
+  retain_ip: true
+  health_check:
+    port: 2181
+    request_line: ''
+    healthy_threshold: 3
+    unhealthy_threshold: 2
+    interval: 5000
+    response_timeout: 3000

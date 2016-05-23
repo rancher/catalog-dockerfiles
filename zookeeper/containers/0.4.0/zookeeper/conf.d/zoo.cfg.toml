@@ -1,0 +1,9 @@
+[template]
+src = "zoo.cfg.tmpl"
+dest = "/opt/zookeeper/conf/zoo.cfg"
+owner = "root"
+mode = "0644"
+keys = [
+  "/self/service/containers",
+  "/containers",
+]

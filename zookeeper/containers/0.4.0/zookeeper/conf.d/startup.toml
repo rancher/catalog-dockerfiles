@@ -1,0 +1,6 @@
+[template]
+src="startup.tmpl"
+dest="/opt/zookeeper/startup.meta"
+keys = [
+  "/self/service"
+]

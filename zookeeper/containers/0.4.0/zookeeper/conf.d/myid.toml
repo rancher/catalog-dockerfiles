@@ -1,0 +1,9 @@
+[template]
+prefix = "/self/container"
+src = "myid.tmpl"
+dest = "/data/myid"
+owner = "root"
+mode = "0644"
+keys = [
+  "/service_index",
+]
