@@ -1,0 +1,6 @@
+[template]
+src="startup.tmpl"
+dest="/opt/rancher/startup.meta"
+keys = [
+  "/self/service"
+]
