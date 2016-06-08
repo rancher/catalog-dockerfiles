@@ -1,205 +1,161 @@
-#!/bin/bash
+#!/bin/bash -x
 
-if [ $# -eq 0 ]; then
-    echo Specify a command
-    exit 1
-fi
-command=$1
-
-SIZE=1
-if [ $# -gt 1 ]; then
-    SIZE=$2
-fi
-
-# parameterize in templates?
+DISCOVERY=http://discovery:6666
 UUID=6c007a14875d53d9bf0ef5a6fc0257c817f0fb84
-DATA_DIR=/data
 
-META_URL="http://rancher-metadata/2015-12-19"
-# only http scheme is supported
-SCHEME=http
-#CLUSTER_NAME=$(curl ${META_URL}/self/stack/name)
+IP=$(giddyup ip myip)
+SCALE=$(giddyup service scale etcd)
 
-# Using hostname for advertising would be better, but etcd resolves it to the docker IP
-while true; do
-    IP_ADDRESS=$(curl -s ${META_URL}/self/container/primary_ip)
-    if [ "$IP_ADDRESS" != "" ] && [ "$IP_ADDRESS" != "Not found" ]; then
-        break
-    fi
-    sleep 1
-done
+META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
+SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
+NAME=etcd${SERVICE_INDEX}
 
-shutdown_discovery_node()
-{
-    echo Shutting down discovery node
-    ID=$(curl -s -X GET http://etcd-discovery:6666/v2/members | jq -r .members[0].id)
-    curl -s -X DELETE http://etcd-discovery:6666/v2/members/$ID
+etcdctld() {
+    etcdctl --no-sync --endpoints $DISCOVERY $@
 }
 
-transition_running()
-{
-    echo Wiating for etcd node to become ready
-    while true; do
-        >/dev/tcp/etcd/2379
-        if [ "$?" -eq "0" ]; then
-            break
-        fi
-        sleep 1
-    done    
-
-    echo Setting cluster state to RUNNING
-    if [ "$(curl -s -X PUT http://etcd:2379/v2/keys/_state -d value="RUNNING" | jq -r .node.value)" != "RUNNING" ]; then
-        echo ERROR: Could not set cluster state
-        exit 1
-    fi
-}
-
-bootstrap()
-{
+bootstrap() {
     echo Waiting for discovery node to become ready
-    while true; do
-        >/dev/tcp/etcd-discovery/6666
-        if [ "$?" -eq "0" ]; then
-            break
-        fi
-        sleep 1
-    done
+    giddyup probe $DISCOVERY/health --loop --min 1s --max 60s --backoff 1.1
 
-    if [ "$SIZE" != "1" ]; then
-        echo Telling discovery node about new cluster $UUID of size $SIZE
-        if [ "$(curl -s -X PUT http://etcd-discovery:6666/v2/keys/discovery/$UUID/_config/size -d value=$SIZE | jq -r .node.value)" != "$SIZE" ]; then
-            echo ERROR: Could not set cluster size
+    if [ "$(etcdctl get _state)" != "RUNNING" ]; then
+        if [ "$SCALE" != "1" ]; then
+            echo Telling discovery node about new cluster of size $SCALE
+            if [ "$(etcdctld set discovery/$UUID/_config/size $SCALE)" != "$SCALE" ]; then
+                echo ERROR: Could not set cluster size
+                exit 1
+            fi
+
+            echo Waiting for cluster members to register
+            size=0
+            remaining=$SCALE
+            until [ "$size" == "$SCALE" ]; do
+                size=$(etcdctld ls discovery/$UUID | wc -l)
+                if [ "$(($SCALE - $size))" != "$remaining" ]; then
+                    remaining=$(($SCALE - $size))
+                    echo "found $size peer(s), waiting for $remaining more"
+                fi
+                sleep 1
+            done
+
+            echo Checking if we see all cluster members
+            size=0
+            until [ "$size" == "$SCALE" ]; do
+                size=$(etcdctl --no-sync --endpoints http://etcd:2379 member list | wc -l)
+                echo "A member sees cluster size=$size"
+                sleep 1
+            done
+        fi
+
+        echo Setting cluster state to RUNNING
+        if [ "$(etcdctl set _state RUNNING)" != "RUNNING" ]; then
+            echo ERROR: Could not set cluster state
             exit 1
         fi
-        sleep 1
-
-        echo Waiting for cluster members to register
-        size=0
-        remaining=$SIZE
-        until [ "$size" == "$SIZE" ]; do
-            size=$(curl -s http://etcd-discovery:6666/v2/keys/discovery/$UUID | jq '.node.nodes | length')
-            if [ "$(($SIZE - $size))" != "$remaining" ]; then
-                remaining=$(($SIZE - $size))
-                echo "found $size peer(s), waiting for $remaining more"
-            fi
-            sleep 1
-        done
-
-        echo Checking if cluster members know about eachother
-        size=0
-        until [ "$size" == "$SIZE" ]; do
-            size=$(curl -m 3 -s etcd:2379/v2/members | jq '.members | length')
-            echo "random member sees cluster size=$size"
-            sleep 1
-        done
+    else
+        echo Cluster is already running
     fi
 
-    transition_running
-    shutdown_discovery_node
+    echo Shutting down discovery node
+    etcdctld member remove $(etcdctld member list | tr ':' '\n' | head -1)
 
     echo Successfully bootstrapped cluster
     sleep 1
 }
 
-discovery_node()
-{
-    echo Discovery started
+discovery_node() {
+    etcd \
+        -name discovery \
+        -advertise-client-urls http://${IP}:6666 \
+        -listen-client-urls http://0.0.0.0:6666
 
-    etcd -name etcd-discovery \
-        -advertise-client-urls ${SCHEME}://${IP_ADDRESS}:6666 \
-        -listen-client-urls ${SCHEME}://0.0.0.0:6666 &> /dev/null
-
-    # deleting the last member in a 1-node etcd cluster causes 
-    # panic: runtime error: index out of range
-    # so we will exit quietly to suppress service/stack degradation
-    exit 0
+    # Nothing fancy needed to shutdown cleanly anymore :-)
+    # https://github.com/coreos/etcd/pull/5366
 }
 
-# initial deployment
-run_initial_node()
-{
-    # wait until registration key exists
-    while [ "$(curl -s etcd-discovery:6666/v2/keys/discovery/$UUID | jq -r .action)" != "get" ]; do
-        echo Registration key not yet created
+bootstrap_node() {
+    echo Waiting for registration key to be created
+    while true; do
+        etcdctld ls discovery/$UUID
+        if [ "$?" -eq "0" ]; then
+            break
+        fi
         sleep 1
     done
 
-    etcd --name ${NAME} \
-        --data-dir ${DATA_DIR} \
-        --listen-client-urls ${SCHEME}://0.0.0.0:2379 \
-        --advertise-client-urls ${SCHEME}://${IP_ADDRESS}:2379 \
-        --listen-peer-urls ${SCHEME}://0.0.0.0:2380 \
-        --initial-advertise-peer-urls ${SCHEME}://${IP_ADDRESS}:2380 \
+    etcd \
+        --name ${NAME} \
+        --listen-client-urls http://0.0.0.0:2379 \
+        --advertise-client-urls http://${IP}:2379 \
+        --listen-peer-urls http://0.0.0.0:2380 \
+        --initial-advertise-peer-urls http://${IP}:2380 \
         --initial-cluster-state new \
-        --discovery http://etcd-discovery:6666/v2/keys/discovery/$UUID
+        --discovery $DISCOVERY/v2/keys/discovery/$UUID
 }
 
-run_standalone_node()
-{
-    etcd --name ${NAME} \
-        --data-dir ${DATA_DIR} \
-        --listen-client-urls ${SCHEME}://0.0.0.0:2379 \
-        --advertise-client-urls ${SCHEME}://${IP_ADDRESS}:2379 \
-        --listen-peer-urls ${SCHEME}://0.0.0.0:2380  
+standalone_node() {
+    etcd \
+        --name ${NAME} \
+        --listen-client-urls http://0.0.0.0:2379 \
+        --advertise-client-urls http://${IP}:2379 \
+        --listen-peer-urls http://0.0.0.0:2380  
 }
 
 # restarts and upgrades
-run_restart_node()
-{
-    etcd --name ${NAME} \
-        --data-dir ${DATA_DIR} \
-        --listen-client-urls ${SCHEME}://0.0.0.0:2379 \
-        --advertise-client-urls ${SCHEME}://${IP_ADDRESS}:2379 \
-        --listen-peer-urls ${SCHEME}://0.0.0.0:2380 \
-        --initial-advertise-peer-urls ${SCHEME}://${IP_ADDRESS}:2380 \
+restart_node() {
+    etcd \
+        --name ${NAME} \
+        --listen-client-urls http://0.0.0.0:2379 \
+        --advertise-client-urls http://${IP}:2379 \
+        --listen-peer-urls http://0.0.0.0:2380 \
+        --initial-advertise-peer-urls http://${IP}:2380 \
         --initial-cluster-state existing
 }
 
-# scale up
-run_active_node()
-{
-    for container in $(curl -s ${META_URL}/services/etcd/containers); do
+# Scale Up
+runtime_node() {
+    # We can almost use giddyup here, need service index templating {{service_index}}
+    # giddyup ip stringify --prefix etcd{{service_index}}=http:// --suffix :2380
+    # etcd1=http://10.42.175.109:2380,etcd2=http://10.42.58.73:2380,etcd3=http://10.42.96.222:2380
+    for container in $(wget -q -O - ${META_URL}/services/etcd/containers); do
         meta_index=$(echo $container | tr '=' '\n' | head -n1)
-        service_index=$(curl -s ${META_URL}/services/etcd/containers/${meta_index}/service_index)
-        ip=$(curl -s ${META_URL}/services/etcd/containers/${meta_index}/primary_ip)
+        service_index=$(wget -q -O - ${META_URL}/services/etcd/containers/${meta_index}/service_index)
+        cip=$(wget -q -O - ${META_URL}/services/etcd/containers/${meta_index}/primary_ip)
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
         fi
-        cluster=${cluster}etcd${service_index}=${SCHEME}://${ip}:2380
+        cluster=${cluster}etcd${service_index}=http://${cip}:2380
     done
 
-    curl -s ${SCHEME}://etcd:2379/v2/members -XPOST \
-        -H "Content-Type: application/json" \
-        -d "{\"peerURLs\":[\"http://${IP_ADDRESS}:2380\"]}"
+    etcdctl member add $NAME http://${IP}:2380
 
-    etcd --name ${NAME} \
-        --data-dir ${DATA_DIR} \
-        --listen-client-urls ${SCHEME}://0.0.0.0:2379 \
-        --advertise-client-urls ${SCHEME}://${IP_ADDRESS}:2379 \
-        --listen-peer-urls ${SCHEME}://0.0.0.0:2380 \
-        --initial-advertise-peer-urls ${SCHEME}://${IP_ADDRESS}:2380 \
+    etcd \
+        --name ${NAME} \
+        --listen-client-urls http://0.0.0.0:2379 \
+        --advertise-client-urls http://${IP}:2379 \
+        --listen-peer-urls http://0.0.0.0:2380 \
+        --initial-advertise-peer-urls http://${IP}:2380 \
         --initial-cluster-state existing \
         --initial-cluster $cluster
 }
 
-node()
-{
-    SERVICE_INDEX=$(curl -s ${META_URL}/self/container/service_index)
-    NAME=etcd${SERVICE_INDEX}
-
-    if [ "$SIZE" == "1" ]; then
-        state=standalone
+node() {
+    if [ "$SCALE" == "1" ]; then
+        standalone_node
+    # if this member is already registered to the cluster, we are upgrading/restarting
+    elif [ "$(etcdctl member list | grep $NAME)" != "" ]; then
+        restart_node
+    # if the cluster is already running, we are scaling up
+    elif [ "$(etcdctl get _state)" == "RUNNING" ]; then
+        runtime_node
     else
-        state=initial
-        # if this member is already registered to the cluster, we are upgrading/restarting
-        if [ "$(curl -m 3 -s http://etcd:2379/v2/members | jq -r ".members[] | select(.name == \"$NAME\") | .name")" == "$NAME" ]; then
-            state=restart
-        # if the cluster is already running, we are scaling up
-        elif [ "$(curl -m 3 -s http://etcd:2379/v2/keys/_state | jq -r .node.value)" == "RUNNING" ]; then
-            state=active
-        fi
+        bootstrap_node
     fi
-    eval run_${state}_node
 }
 
-eval ${command}
+if [ $# -eq 0 ]; then
+    echo No command specificed, running in standalone mode.
+    standalone_node
+else
+    eval $1
+fi
