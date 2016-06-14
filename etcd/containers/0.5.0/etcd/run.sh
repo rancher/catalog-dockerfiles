@@ -139,12 +139,33 @@ runtime_node() {
         --initial-cluster $cluster
 }
 
+# failure scenario
+recover_node() {
+    # figure out which node we are replacing
+    oldnode=$(etcdctl member list | grep $NAME | tr ':' '\n' | head -1)
+
+    # remove the old node
+    etcdctl member remove $oldnode
+
+    # start the new node
+    runtime_node
+}
+
 node() {
+    # DNS check
+    ping -w 3 etcd
+
     if [ "$SCALE" == "1" ]; then
         standalone_node
-    # if this member is already registered to the cluster, we are upgrading/restarting
+    # if this member is already registered to the cluster, we are upgrading/restarting/recovering
     elif [ "$(etcdctl member list | grep $NAME)" != "" ]; then
-        restart_node
+        # if we have a data volume, we are upgrading/restarting
+        if [ -d "$ETCD_DATA_DIR/member" ]; then
+            restart_node
+        # otherwise, we are recovering from failure
+        else
+            recover_node
+        fi
     # if the cluster is already running, we are scaling up
     elif [ "$(etcdctl get _state)" == "RUNNING" ]; then
         runtime_node
