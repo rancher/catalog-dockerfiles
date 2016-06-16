@@ -74,6 +74,9 @@ discovery_node() {
 }
 
 bootstrap_node() {
+    echo Waiting for discovery node to become ready
+    giddyup probe $DISCOVERY/health --loop --min 1s --max 60s --backoff 1.1
+
     echo Waiting for registration key to be created
     while true; do
         etcdctld ls discovery/$UUID
@@ -158,7 +161,7 @@ node() {
     if [ "$SCALE" == "1" ]; then
         standalone_node
     # if this member is already registered to the cluster, we are upgrading/restarting/recovering
-    elif [ "$(etcdctl member list | grep $NAME)" != "" ]; then
+    elif [ "$(timeout -t10 etcdctl member list | grep $NAME)" != "" ]; then
         # if we have a data volume, we are upgrading/restarting
         if [ -d "$ETCD_DATA_DIR/member" ]; then
             restart_node
@@ -167,7 +170,7 @@ node() {
             recover_node
         fi
     # if the cluster is already running, we are scaling up
-    elif [ "$(etcdctl get _state)" == "RUNNING" ]; then
+    elif [ "$(timeout -t10 etcdctl get _state)" == "RUNNING" ]; then
         runtime_node
     else
         bootstrap_node
