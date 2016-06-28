@@ -1,12 +1,16 @@
-#!/bin/bash -x
+#!/bin/bash
+if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
 DISCOVERY=http://discovery:6666
 UUID=6c007a14875d53d9bf0ef5a6fc0257c817f0fb84
 
 IP=$(giddyup ip myip)
+# TODO (llparse) when scale_policy enabled, scale value is always 1. 
+# We need to check metadata for scale policy info once it is available
 SCALE=$(giddyup service scale etcd)
 
 META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
+STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
 NAME=etcd${SERVICE_INDEX}
 
@@ -45,6 +49,9 @@ bootstrap() {
                 echo "A member sees cluster size=$size"
                 sleep 1
             done
+        else
+            echo Bootstrapping a 1-node etcd is a no-op, consider not running discovery service
+            giddyup probe http://etcd:2379/health --loop --min 1s --max 60s --backoff 1.1
         fi
 
         echo Setting cluster state to RUNNING
@@ -68,9 +75,6 @@ discovery_node() {
         -name discovery \
         -advertise-client-urls http://${IP}:6666 \
         -listen-client-urls http://0.0.0.0:6666
-
-    # Nothing fancy needed to shutdown cleanly anymore :-)
-    # https://github.com/coreos/etcd/pull/5366
 }
 
 bootstrap_node() {
@@ -97,11 +101,21 @@ bootstrap_node() {
 }
 
 standalone_node() {
+    standalone_bootstrap &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
         --advertise-client-urls http://${IP}:2379 \
-        --listen-peer-urls http://0.0.0.0:2380  
+        --listen-peer-urls http://0.0.0.0:2380 \
+        --initial-advertise-peer-urls http://${IP}:2380 \
+        --initial-cluster etcd1=http://${IP}:2380 \
+        --initial-cluster-state new
+}
+
+standalone_bootstrap() {
+    echo Waiting for standalone node to start
+    giddyup probe http://${STACK_NAME}_etcd_${SERVICE_INDEX}:2379/health --loop --min 1s --max 1s
+    etcdctl set _state RUNNING
 }
 
 # restarts and upgrades
@@ -123,6 +137,12 @@ runtime_node() {
     for container in $(wget -q -O - ${META_URL}/services/etcd/containers); do
         meta_index=$(echo $container | tr '=' '\n' | head -n1)
         service_index=$(wget -q -O - ${META_URL}/services/etcd/containers/${meta_index}/service_index)
+
+        # simulate step-scale policy by ignoring service_indeces greater than our own (except during recovery)
+        if [ "$RECOVERING" != "true" ] && [ "$(($service_index > $SERVICE_INDEX))" == "1" ]; then
+            continue
+        fi
+
         cip=$(wget -q -O - ${META_URL}/services/etcd/containers/${meta_index}/primary_ip)
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
@@ -151,34 +171,44 @@ recover_node() {
     etcdctl member remove $oldnode
 
     # start the new node
+    RECOVERING=true
     runtime_node
 }
 
 node() {
-    # DNS check
-    ping -w 3 etcd
-
-    if [ "$SCALE" == "1" ]; then
+    if [ "$SERVICE_INDEX" == "1" ]; then
         standalone_node
-    # if this member is already registered to the cluster, we are upgrading/restarting/recovering
-    elif [ "$(timeout -t10 etcdctl member list | grep $NAME)" != "" ]; then
+    else
+        # Wait for nodes with smaller service index to become healthy
+        if [ "$(($SERVICE_INDEX > 1))" == "1" ]; then
+            echo Waiting for lower index nodes to all be active
+            for i in $(seq 1 $(($SERVICE_INDEX - 1))); do
+                giddyup probe http://${STACK_NAME}_etcd_${i}:2379/health --loop --min 1s --max 60s --backoff 1.1
+            done
+        fi    
+
         # if we have a data volume, we are upgrading/restarting
         if [ -d "$ETCD_DATA_DIR/member" ]; then
             restart_node
-        # otherwise, we are recovering from failure
-        else
+
+        # if this member is already registered to the cluster but no data volume, we are recovering
+        elif [ "$(timeout -t10 etcdctl member list | grep $NAME)" != "" ]; then
             recover_node
+
+        # we are scaling up
+        else
+            runtime_node
         fi
-    # if the cluster is already running, we are scaling up
-    elif [ "$(timeout -t10 etcdctl get _state)" == "RUNNING" ]; then
-        runtime_node
-    else
-        bootstrap_node
     fi
+
+    # TODO (llparse) once we have scale_policy metadata access
+    #if [ min_scale_policy > 1 && !running]; then
+    #    bootstrap_node
+    #fi
 }
 
 if [ $# -eq 0 ]; then
-    echo No command specificed, running in standalone mode.
+    echo No command specified, running in standalone mode.
     standalone_node
 else
     eval $1
