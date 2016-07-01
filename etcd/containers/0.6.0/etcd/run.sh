@@ -40,20 +40,6 @@ etcdctln() {
     fi
 }
 
-get_state() {
-    # giddyup probe loop runs forever so we must do single calls or we may block forever
-    etcdctln get _state
-#    state=NOKEY
-#    for i in $(seq 1 5); do
-#        giddyup probe http://etcd:2379/health &> /dev/null
-#        if [ "$?" == "0" ]; then
-#            state=$(etcdctl get _state)
-#        fi
-#        sleep 1
-#    done
-#    echo $state
-}
-
 set_state() {
     echo Setting cluster state to $1
 
@@ -248,7 +234,7 @@ node() {
         recover_node
 
     # if the cluster is not running and our index is in range, bootstrap
-    elif [ "$(get_state)" != "RUNNING" ] && [ "$(($SERVICE_INDEX <= $MIN_SCALE))" == "1" ]; then
+    elif [ "$(etcdctln get _state)" != "RUNNING" ] && [ "$(($SERVICE_INDEX <= $MIN_SCALE))" == "1" ]; then
         bootstrap_node
 
     # we are scaling up

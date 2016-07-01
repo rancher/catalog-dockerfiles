@@ -9,12 +9,11 @@ etcd:
     RANCHER_DEBUG: ${DEBUG}
   links:
   - data
-  - discovery
   volumes_from:
     - data
 # containerize data volume to enable restarts and upgrades
 data:
-  image: llparse/etcd
+  image: busybox
   entrypoint: /bin/true
   net: none
   volumes:
@@ -35,6 +34,7 @@ bootstrap:
   image: llparse/etcd:v2.3.6-2
   command: bootstrap
   links:
+  - etcd
   - discovery
   labels:
     io.rancher.container.start_once: 'true'
