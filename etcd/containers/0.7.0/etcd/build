@@ -1,0 +1,11 @@
+#!/bin/bash
+
+ACCT=${ACCT:-llparse}
+VERSION=${VERSION:-v2.3.6-2}
+
+docker build -t $ACCT/etcd:$VERSION .
+docker push $ACCT/etcd:$VERSION
+
+if [ "$(which gsync)" ]; then
+  gsync $ACCT/etcd:$VERSION
+fi
