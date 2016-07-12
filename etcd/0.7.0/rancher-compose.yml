@@ -1,0 +1,37 @@
+.catalog:
+  name: Etcd
+  version: 2.3.6-rancher2
+  description: |
+    Distributed highly-available key-value store
+  minimum_rancher_version: v1.1.0-rc2
+  questions:
+    - variable: REPLICAS
+      description: Number of Etcd nodes. 3, 5, or 7 are good choices
+      label: Number of Nodes
+      required: true
+      default: 3
+      type: int
+    - variable: DEBUG
+      description: Enable or disable verbose logging and other debugging features
+      label: Debug
+      type: boolean
+      default: false
+etcd:
+  scale_policy:
+    min: 3
+    max: 5
+    increment: 1
+  metadata:
+    scale_policy:
+      min: 3
+  scale: ${REPLICAS}
+  health_check:
+    port: 2379
+    request_line: '/health'
+    interval: 7500
+    recreate_on_quorum_strategy_config:
+      quorum: 2
+    strategy: recreateOnQuorum
+    response_timeout: 5000
+    healthy_threshold: 2
+    unhealthy_threshold: 4
