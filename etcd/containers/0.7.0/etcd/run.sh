@@ -140,6 +140,10 @@ standalone_node() {
 }
 
 restart_node() {
+    # Runtime reconfigure the IP address in case retain_ip isn't set and we are upgrading
+    oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
+    etcdctln member update $oldnode http://${IP}:2380
+
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -193,7 +197,7 @@ runtime_node() {
 # failure scenario
 recover_node() {
     # figure out which node we are replacing
-    oldnode=$(etcdctln member list | grep $NAME | tr ':' '\n' | head -1)
+    oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
 
     # remove the old node
     etcdctln member remove $oldnode
