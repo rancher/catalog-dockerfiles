@@ -3,7 +3,7 @@ FROM alpine:3.3
 RUN \
   apk add --update bash ca-certificates && \
   rm -rf /var/cache/apk/* && \
-  wget -q -O /usr/local/bin/giddyup https://github.com/cloudnautique/giddyup/releases/download/v0.11.0/giddyup && \
+  wget -q -O /usr/local/bin/giddyup https://github.com/cloudnautique/giddyup/releases/download/v0.13.0/giddyup && \
   chmod +x /usr/local/bin/giddyup
 
 RUN \

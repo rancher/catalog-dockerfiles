@@ -2,12 +2,9 @@
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
 DISCOVERY=http://discovery:6666
-UUID=6c007a14875d53d9bf0ef5a6fc0257c817f0fb84
-
-IP=$(giddyup ip myip)
 SCALE=$(giddyup service scale etcd)
 
-MIN_SCALE=$(wget -q -O - http://rancher-metadata/latest/self/service/metadata/scale_policy/min)
+IP=$(giddyup ip myip)
 META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
@@ -40,63 +37,6 @@ etcdctln() {
     fi
 }
 
-set_state() {
-    echo Setting cluster state to $1
-
-    if [ "$(etcdctln set _state $1)" != "$1" ]; then
-        echo ERROR: Could not set cluster state
-        exit 1
-    fi
-}
-
-bootstrap() {
-    echo Waiting for discovery node to become ready
-    giddyup probe $DISCOVERY/health --loop --min 1s --max 60s --backoff 1.1
-
-    if [ "$(etcdctln get _state)" != "RUNNING" ]; then
-        if [ "$SCALE" != "1" ]; then
-            echo Telling discovery node about new cluster of size $SCALE
-            if [ "$(etcdctld set discovery/$UUID/_config/size $SCALE)" != "$SCALE" ]; then
-                echo ERROR: Could not set cluster size
-                exit 1
-            fi
-
-            echo Waiting for cluster members to register
-            size=0
-            remaining=$SCALE
-            until [ "$size" == "$SCALE" ]; do
-                size=$(etcdctld ls discovery/$UUID | wc -l)
-                if [ "$(($SCALE - $size))" != "$remaining" ]; then
-                    remaining=$(($SCALE - $size))
-                    echo "found $size peer(s), waiting for $remaining more"
-                fi
-                sleep 1
-            done
-
-            echo Checking if we see all cluster members
-            size=0
-            until [ "$size" == "$SCALE" ]; do
-                size=$(etcdctl --no-sync --endpoints http://etcd:2379 member list | wc -l)
-                echo "A member sees cluster size=$size"
-                sleep 1
-            done
-        else
-            echo Bootstrapping a 1-node etcd is a no-op, consider not running discovery service
-        fi
-
-        giddyup probe http://etcd:2379/health --loop --min 1s --max 60s --backoff 1.1
-        set_state RUNNING
-    else
-        echo Cluster is already running
-    fi
-
-    echo Shutting down discovery node
-    etcdctld member remove $(etcdctld member list | tr ':' '\n' | head -1)
-
-    echo Successfully bootstrapped cluster
-    sleep 1
-}
-
 discovery_node() {
     etcd \
         -name discovery \
@@ -104,31 +44,7 @@ discovery_node() {
         -listen-client-urls http://0.0.0.0:6666
 }
 
-bootstrap_node() {
-    echo Waiting for discovery node to become healthy
-    giddyup probe $DISCOVERY/health --loop --min 1s --max 60s --backoff 1.1
-
-    echo Waiting for registration key to be created
-    while true; do
-        etcdctld ls discovery/$UUID
-        if [ "$?" -eq "0" ]; then
-            break
-        fi
-        sleep 1
-    done
-
-    etcd \
-        --name ${NAME} \
-        --listen-client-urls http://0.0.0.0:2379 \
-        --advertise-client-urls http://${IP}:2379 \
-        --listen-peer-urls http://0.0.0.0:2380 \
-        --initial-advertise-peer-urls http://${IP}:2380 \
-        --initial-cluster-state new \
-        --discovery $DISCOVERY/v2/keys/discovery/$UUID
-}
-
 standalone_node() {
-    set_state RUNNING &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -226,7 +142,7 @@ recover_node() {
 }
 
 node() {
-    if [ "$SCALE" == "1" ]; then
+    if giddyup leader check ; then
         standalone_node
 
     # if we have a data volume, we are upgrading/restarting
@@ -236,10 +152,6 @@ node() {
     # if this member is already registered to the cluster but no data volume, we are recovering
     elif [ "$(etcdctln member list | grep $NAME)" != "" ]; then
         recover_node
-
-    # if the cluster is not running and our index is in range, bootstrap
-    elif [ "$(etcdctln get _state)" != "RUNNING" ] && [ "$(($SERVICE_INDEX <= $MIN_SCALE))" == "1" ]; then
-        bootstrap_node
 
     # we are scaling up
     else
