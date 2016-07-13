@@ -25,10 +25,14 @@ etcd:
     scale_policy:
       min: 1
   scale: ${REPLICAS}
+  retain_ip: true
   health_check:
-    port: 2379
-    request_line: '/health'
-    interval: 7500
-    response_timeout: 5000
+    port: 1620
+    request_line: '/ping'
+    interval: 10000
+    recreate_on_quorum_strategy_config:
+        quorum: 2
+    strategy: recreateOnQuorum
+    response_timeout: 12000
     healthy_threshold: 2
-    unhealthy_threshold: 4
+    unhealthy_threshold: 6
