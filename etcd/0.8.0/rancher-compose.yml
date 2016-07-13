@@ -33,8 +33,6 @@ etcd:
     recreate_on_quorum_strategy_config:
         quorum: 2
     strategy: recreateOnQuorum
-    initializing_timeout: 60000
-    reinitializing_timeout: 60000
     response_timeout: 12000
     healthy_threshold: 2
     unhealthy_threshold: 6
