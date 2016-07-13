@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ACCT=${ACCT:-llparse}
-VERSION=${VERSION:-v2.3.6-2}
+VERSION=${VERSION:-v2.3.6-4}
 
 docker build -t $ACCT/etcd:$VERSION .
 docker push $ACCT/etcd:$VERSION

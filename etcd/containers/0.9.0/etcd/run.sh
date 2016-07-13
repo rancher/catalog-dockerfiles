@@ -1,14 +1,15 @@
 #!/bin/bash
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
+BACKUP_DIR=${BACKUP_DIR:-/data.backup}
 DISCOVERY=http://discovery:6666
 SCALE=$(giddyup service scale etcd)
 
 IP=$(giddyup ip myip)
 META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
-SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
-NAME=etcd${SERVICE_INDEX}
+CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
+NAME=$(wget -q -O - ${META_URL}/self/container/name)
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
 
 etcdctld() {
@@ -51,7 +52,7 @@ standalone_node() {
         --advertise-client-urls http://${IP}:2379 \
         --listen-peer-urls http://0.0.0.0:2380 \
         --initial-advertise-peer-urls http://${IP}:2380 \
-        --initial-cluster etcd1=http://${IP}:2380 \
+        --initial-cluster ${NAME}=http://${IP}:2380 \
         --initial-cluster-state new
 }
 
@@ -71,23 +72,27 @@ restart_node() {
 
 # Scale Up
 runtime_node() {
+
+    # Get leader create_index
     # Wait for nodes with smaller service index to become healthy
-    if [ "$(($SERVICE_INDEX > 1))" == "1" ]; then
+    for container in $(giddyup service containers --exclude-self); do
         echo Waiting for lower index nodes to all be active
-        for i in $(seq 1 $(($SERVICE_INDEX - 1))); do
-            giddyup probe http://${STACK_NAME}_etcd_${i}:2379/health --loop --min 1s --max 60s --backoff 1.1
-        done
-    fi
+        ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${container}/create_index)
+        if [ "${ctx_index}" -lt "${CREATE_INDEX}" ]; then
+            giddyup probe http://${container}:2379/health --loop --min 1s --max 60s --backoff 1.1
+        fi
+    done
 
     # We can almost use giddyup here, need service index templating {{service_index}}
     # giddyup ip stringify --prefix etcd{{service_index}}=http:// --suffix :2380
     # etcd1=http://10.42.175.109:2380,etcd2=http://10.42.58.73:2380,etcd3=http://10.42.96.222:2380
     for container in $(wget -q -O - ${META_URL}/self/service/containers); do
         meta_index=$(echo $container | tr '=' '\n' | head -n1)
-        service_index=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/service_index)
+        ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/create_index)
+        container_name=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/name)
 
-        # simulate step-scale policy by ignoring service_indeces greater than our own (except during recovery)
-        if [ "$(($service_index > $SERVICE_INDEX))" == "1" ]; then
+        # simulate step-scale policy by ignoring create_indeces greater than our own
+        if [ "${ctx_index}" -gt "${CREATE_INDEX}" ]; then
             continue
         fi
 
@@ -95,7 +100,7 @@ runtime_node() {
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
         fi
-        cluster=${cluster}etcd${service_index}=http://${cip}:2380
+        cluster=${cluster}${container_name}=http://${cip}:2380
     done
 
     etcdctln member add $NAME http://${IP}:2380
@@ -141,13 +146,55 @@ recover_node() {
         --initial-cluster $cluster
 }
 
+disaster_node() {
+    etcd \
+        --name ${NAME} \
+        --listen-client-urls http://0.0.0.0:2379 \
+        --advertise-client-urls http://${IP}:2379 \
+        --listen-peer-urls http://0.0.0.0:2380 \
+        --initial-advertise-peer-urls http://${IP}:2380 \
+        --initial-cluster ${NAME}=http://${IP}:2380 \
+        --data-dir ${BACKUP_DIR} \
+        --force-new-cluster &
+    PID=$!
+
+    # wait until the backup dir has been sanitized
+    giddyup probe http://127.0.0.1:2379/health --loop --min 1s --max 60s --backoff 1.1
+
+    # for some reason, disaster recovery ignores peer-urls flag so we update it
+    oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
+    etcdctl member update $oldnode http://${IP}:2380
+
+    # kill the disaster node
+    while kill -0 $PID &> /dev/null; do
+        kill $PID
+        sleep 1
+    done
+
+    # archive old data directory
+    mv $ETCD_DATA_DIR ${ETCD_DATA_DIR}.old
+
+    # copy the sanitized backup to the data directory
+    cp -rf $BACKUP_DIR/* $ETCD_DATA_DIR/
+
+    # move the backup so we don't re-enter disaster recovery
+    mv $BACKUP_DIR ${BACKUP_DIR}.sanitized
+
+    # become a new standalone node
+    standalone_node
+}
+
 node() {
-    if giddyup leader check ; then
-        standalone_node
+    # if we have a backup volume, we are recovering from a disaster
+    if [ -d "$BACKUP_DIR/member" ]; then
+        disaster_node
 
     # if we have a data volume, we are upgrading/restarting
     elif [ -d "$ETCD_DATA_DIR/member" ]; then
         restart_node
+
+    elif giddyup leader check; then
+        standalone_node
 
     # if this member is already registered to the cluster but no data volume, we are recovering
     elif [ "$(etcdctln member list | grep $NAME)" != "" ]; then

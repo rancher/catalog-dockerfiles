@@ -13,6 +13,7 @@ RUN \
   rm -rf /tmp/etcd-* && rm -f /etcd-*.tar.gz
 
 ADD run.sh /run.sh
+ADD disaster /usr/bin/disaster
 
 ENTRYPOINT ["/run.sh"]
 CMD ["node"]
