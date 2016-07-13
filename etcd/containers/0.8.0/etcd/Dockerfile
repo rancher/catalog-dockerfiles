@@ -13,6 +13,7 @@ RUN \
   rm -rf /tmp/etcd-* && rm -f /etcd-*.tar.gz
 
 ADD run.sh /run.sh
+ADD healthcheck.sh /healthcheck.sh
 
 ENTRYPOINT ["/run.sh"]
 CMD ["node"]

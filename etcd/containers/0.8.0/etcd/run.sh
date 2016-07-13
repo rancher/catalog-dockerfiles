@@ -1,58 +1,45 @@
 #!/bin/bash
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
-DISCOVERY=http://discovery:6666
-SCALE=$(giddyup service scale etcd)
-
 IP=$(giddyup ip myip)
 META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
-NAME=etcd${SERVICE_INDEX}
+NAME=${HOSTNAME}
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
 
-etcdctld() {
-    etcdctl --no-sync --endpoints $DISCOVERY $@
-}
-
 etcdctln() {
-    target=0
-    for j in $(seq 1 5); do
-        for i in $(seq 1 $SCALE); do
-            giddyup probe http://${STACK_NAME}_etcd_${i}:2379/health &> /dev/null
-            if [ "$?" == "0" ]; then
-                target=$i
-                break
-            fi
-        done
-        if [ "$target" != "0" ]; then
+
+    for i in $(seq 1 10); do 
+        giddyup probe http://$(giddyup leader get):2379/health &> /dev/null
+        if [ "$?" == "0" ]; then
             break
         fi
         sleep 1
     done
-    if [ "$target" == "0" ]; then
-        echo No etcd nodes available
-    else
-        etcdctl --endpoints http://${STACK_NAME}_etcd_$target:2379 $@
+
+    # throw a hail mary... maybe...
+    if ! etcdctl --endpoints http://$(giddyup leader get):2379 $@ ; then
+        echo "leader did not take request: $@"
     fi
 }
 
-discovery_node() {
-    etcd \
-        -name discovery \
-        -advertise-client-urls http://${IP}:6666 \
-        -listen-client-urls http://0.0.0.0:6666
-}
 
 standalone_node() {
+
+    # go defensive and ONLY go standalone if there is no data.
+    opts="--initial-cluster-state existing"
+    if [ ! -d "${ETCD_DATA_DIR}/member" ] ; then
+        opts="--initial-cluster ${NAME}=http://${IP}:2380 --initial-cluster-state new"
+    fi
+
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
         --advertise-client-urls http://${IP}:2379 \
         --listen-peer-urls http://0.0.0.0:2380 \
         --initial-advertise-peer-urls http://${IP}:2380 \
-        --initial-cluster etcd1=http://${IP}:2380 \
-        --initial-cluster-state new
+        ${opts}
 }
 
 restart_node() {
@@ -85,6 +72,7 @@ runtime_node() {
     for container in $(wget -q -O - ${META_URL}/self/service/containers); do
         meta_index=$(echo $container | tr '=' '\n' | head -n1)
         service_index=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/service_index)
+        container_name=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/name)
 
         # simulate step-scale policy by ignoring service_indeces greater than our own (except during recovery)
         if [ "$(($service_index > $SERVICE_INDEX))" == "1" ]; then
@@ -95,7 +83,7 @@ runtime_node() {
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
         fi
-        cluster=${cluster}etcd${service_index}=http://${cip}:2380
+        cluster=${cluster}${container_name}=http://${cip}:2380
     done
 
     etcdctln member add $NAME http://${IP}:2380
@@ -144,9 +132,10 @@ recover_node() {
 node() {
     if giddyup leader check ; then
         standalone_node
+    fi
 
     # if we have a data volume, we are upgrading/restarting
-    elif [ -d "$ETCD_DATA_DIR/member" ]; then
+    if [ -d "$ETCD_DATA_DIR/member" ]; then
         restart_node
 
     # if this member is already registered to the cluster but no data volume, we are recovering
