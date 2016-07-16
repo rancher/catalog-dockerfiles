@@ -1,0 +1,10 @@
+#!/bin/bash
+
+BACKUP_DIR=${BACKUP_DIR:-/data.backup}
+
+echo -e "You seem to be having a bad day. Sorry about that.\n\nCreating backup..."
+
+etcdctl backup --data-dir $ETCD_DATA_DIR --backup-dir $BACKUP_DIR
+
+echo -e "Complete.\n\nPlease restart (DO NOT DELETE) this container to begin disaster recovery."
+echo -e "Once this is completed, add more hosts to scale your etcd cluster."
