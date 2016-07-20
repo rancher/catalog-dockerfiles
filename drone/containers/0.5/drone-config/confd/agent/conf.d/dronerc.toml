@@ -1,0 +1,6 @@
+[template]
+src="dronerc.tmpl"
+dest="/etc/drone/dronerc"
+keys = [
+  "/self"
+]
