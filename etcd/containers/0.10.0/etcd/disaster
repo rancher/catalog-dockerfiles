@@ -2,9 +2,10 @@
 
 BACKUP_DIR=${BACKUP_DIR:-/data.backup}
 
-echo -e "You seem to be having a bad day. Sorry about that.\n\nCreating backup..."
+mkdir -p $BACKUP_DIR
 
-etcdctl backup --data-dir $ETCD_DATA_DIR --backup-dir $BACKUP_DIR
+echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
 
-echo -e "Complete.\n\nPlease restart (DO NOT DELETE) this container to begin disaster recovery."
-echo -e "Once this is completed, add more hosts to scale your etcd cluster."
+sleep 3
+
+kill $(pidof etcd)

@@ -2,7 +2,6 @@
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
 BACKUP_DIR=${BACKUP_DIR:-/data.backup}
-DISCOVERY=http://discovery:6666
 SCALE=$(giddyup service scale etcd)
 
 IP=$(giddyup ip myip)
@@ -11,10 +10,6 @@ STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
 NAME=$(wget -q -O - ${META_URL}/self/container/name)
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
-
-etcdctld() {
-    etcdctl --no-sync --endpoints $DISCOVERY $@
-}
 
 etcdctln() {
     target=0
@@ -57,10 +52,6 @@ standalone_node() {
 }
 
 restart_node() {
-    # Runtime reconfigure the IP address in case retain_ip isn't set and we are upgrading
-    oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
-    etcdctln member update $oldnode http://${IP}:2380
-
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -147,6 +138,14 @@ recover_node() {
 }
 
 disaster_node() {
+    echo "Archiving data directory..."
+    # archive data directory before doing anything
+    cp -rf $ETCD_DATA_DIR ${ETCD_DATA_DIR}.old
+
+    echo "Creating a backup..."
+    etcdctl backup --data-dir $ETCD_DATA_DIR --backup-dir $BACKUP_DIR
+    
+    echo "Sanitizing backup..."
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -171,14 +170,13 @@ disaster_node() {
         sleep 1
     done
 
-    # archive old data directory
-    mv $ETCD_DATA_DIR ${ETCD_DATA_DIR}.old
-
     # copy the sanitized backup to the data directory
+    echo "Copying sanitized backup to data directory..."
     cp -rf $BACKUP_DIR/* $ETCD_DATA_DIR/
 
-    # move the backup so we don't re-enter disaster recovery
-    mv $BACKUP_DIR ${BACKUP_DIR}.sanitized
+    # delete the backup so we don't re-enter disaster recovery
+    echo "Deleting backup..."
+    rm -rf $BACKUP_DIR
 
     # become a new standalone node
     standalone_node
@@ -186,7 +184,7 @@ disaster_node() {
 
 node() {
     # if we have a backup volume, we are recovering from a disaster
-    if [ -d "$BACKUP_DIR/member" ]; then
+    if [ -d "$BACKUP_DIR" ]; then
         disaster_node
 
     # if we have a data volume, we are upgrading/restarting
