@@ -1,14 +1,17 @@
 #!/bin/bash
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
-BACKUP_DIR=${BACKUP_DIR:-/data.backup}
 SCALE=$(giddyup service scale etcd)
-
 IP=$(giddyup ip myip)
 META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
 NAME=$(wget -q -O - ${META_URL}/self/container/name)
+
+# be very careful that all state goes into the data container
+DATA_DIR=/data
+DR_FLAG=$DATA_DIR/DR
+export ETCD_DATA_DIR=$DATA_DIR/data.current
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
 
 etcdctln() {
@@ -31,13 +34,6 @@ etcdctln() {
     else
         etcdctl --endpoints http://${STACK_NAME}_etcd_$target:2379 $@
     fi
-}
-
-discovery_node() {
-    etcd \
-        -name discovery \
-        -advertise-client-urls http://${IP}:6666 \
-        -listen-client-urls http://0.0.0.0:6666
 }
 
 standalone_node() {
@@ -70,7 +66,7 @@ runtime_node() {
         echo Waiting for lower index nodes to all be active
         ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${container}/create_index)
         if [ "${ctx_index}" -lt "${CREATE_INDEX}" ]; then
-            giddyup probe http://${container}:2379/health --loop --min 1s --max 60s --backoff 1.1
+            giddyup probe http://${container}:2379/health --loop --min 1s --max 15s --backoff 1.2
         fi
     done
 
@@ -106,7 +102,7 @@ runtime_node() {
         --initial-cluster $cluster
 }
 
-# failure scenario
+# recoverable failure scenario
 recover_node() {
     # figure out which node we are replacing
     oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
@@ -138,14 +134,14 @@ recover_node() {
 }
 
 disaster_node() {
-    echo "Archiving data directory..."
-    # archive data directory before doing anything
-    cp -rf $ETCD_DATA_DIR ${ETCD_DATA_DIR}.old
+    BACKUP_DIR=${DATA_DIR}/data.$(date +"%Y%m%d.%H%M%S").DR
 
-    echo "Creating a backup..."
-    etcdctl backup --data-dir $ETCD_DATA_DIR --backup-dir $BACKUP_DIR
+    echo "Creating a DR backup..."
+    etcdctl backup \
+        --data-dir $ETCD_DATA_DIR \
+        --backup-dir $BACKUP_DIR
     
-    echo "Sanitizing backup..."
+    echo "Sanitizing DR backup..."
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -158,33 +154,33 @@ disaster_node() {
     PID=$!
 
     # wait until the backup dir has been sanitized
-    giddyup probe http://127.0.0.1:2379/health --loop --min 1s --max 60s --backoff 1.1
+    giddyup probe http://127.0.0.1:2379/health --loop --min 1s --max 15s --backoff 1.2
 
     # for some reason, disaster recovery ignores peer-urls flag so we update it
     oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
     etcdctl member update $oldnode http://${IP}:2380
+    sleep 3
 
-    # kill the disaster node
+    # shutdown the disaster node cleanly
+    kill $PID
     while kill -0 $PID &> /dev/null; do
-        kill $PID
         sleep 1
     done
 
-    # copy the sanitized backup to the data directory
-    echo "Copying sanitized backup to data directory..."
+    echo "Copying sanitized DR backup to data directory..."
+    rm -rf $ETCD_DATA_DIR/*
     cp -rf $BACKUP_DIR/* $ETCD_DATA_DIR/
 
-    # delete the backup so we don't re-enter disaster recovery
-    echo "Deleting backup..."
-    rm -rf $BACKUP_DIR
+    # remove the DR flag
+    rmdir $DR_FLAG
 
     # become a new standalone node
     standalone_node
 }
 
 node() {
-    # if we have a backup volume, we are recovering from a disaster
-    if [ -d "$BACKUP_DIR" ]; then
+    # if the DR flag is set, enter disaster recovery
+    if [ -d "$DR_FLAG" ]; then
         disaster_node
 
     # if we have a data volume, we are upgrading/restarting

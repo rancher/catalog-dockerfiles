@@ -1,11 +1,14 @@
 #!/bin/bash
 
-BACKUP_DIR=${BACKUP_DIR:-/data.backup}
+DATA_DIR=/data
+DR_FLAG=${DATA_DIR}/DR
 
-mkdir -p $BACKUP_DIR
+mkdir -p $DR_FLAG
 
 echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
 
-sleep 3
+sleep 1
 
 kill $(pidof etcd)
+
+sleep 2
