@@ -153,13 +153,23 @@ disaster_node() {
         --force-new-cluster &
     PID=$!
 
-    # wait until the backup dir has been sanitized
+    # wait until etcd reports healthy
     giddyup probe http://127.0.0.1:2379/health --loop --min 1s --max 15s --backoff 1.2
 
-    # for some reason, disaster recovery ignores peer-urls flag so we update it
-    oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
+    # Disaster recovery ignores peer-urls flag, so we update it
+
+    # query etcd for its old member ID
+    while [ "$oldnode" == "" ]; do
+        oldnode=$(etcdctl member list | grep "$NAME" | tr ':' '\n' | head -1)
+        sleep 1
+    done
+    
+    # etcd says it is healthy, but writes fail for a while...so keep trying until it works
     etcdctl member update $oldnode http://${IP}:2380
-    sleep 3
+    while [ "$?" != "0" ]; do
+        sleep 1
+        etcdctl member update $oldnode http://${IP}:2380
+    done
 
     # shutdown the disaster node cleanly
     kill $PID
