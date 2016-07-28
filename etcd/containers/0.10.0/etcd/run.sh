@@ -155,15 +155,15 @@ disaster_node() {
 
     # query etcd for its old member ID
     while [ "$oldnode" == "" ]; do
-        oldnode=$(etcdctl member list | grep "$NAME" | tr ':' '\n' | head -1)
+        oldnode=$(etcdctl --endpoints=http://127.0.0.1:2379 member list | grep "$NAME" | tr ':' '\n' | head -1)
         sleep 1
     done
     
     # etcd says it is healthy, but writes fail for a while...so keep trying until it works
-    etcdctl member update $oldnode http://${IP}:2380
+    etcdctl --endpoints=http://127.0.0.1:2379 member update $oldnode http://${IP}:2380
     while [ "$?" != "0" ]; do
         sleep 1
-        etcdctl member update $oldnode http://${IP}:2380
+        etcdctl --endpoints=http://127.0.0.1:2379 member update $oldnode http://${IP}:2380
     done
 
     # shutdown the node cleanly
