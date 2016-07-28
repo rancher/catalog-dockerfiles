@@ -166,9 +166,9 @@ disaster_node() {
         etcdctl member update $oldnode http://${IP}:2380
     done
 
-    # shutdown the disaster node cleanly
-    kill $PID
+    # shutdown the node cleanly
     while kill -0 $PID &> /dev/null; do
+        kill $PID
         sleep 1
     done
 

@@ -9,6 +9,9 @@ echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automati
 
 sleep 1
 
-kill $(pidof etcd)
-
-sleep 2
+# Continuously send SIGTERM
+PID=$(pidof etcd)
+while kill -0 $PID &> /dev/null; do
+  kill $PID
+  sleep 1
+done
