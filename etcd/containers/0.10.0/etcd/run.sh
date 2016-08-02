@@ -36,7 +36,12 @@ etcdctln() {
     fi
 }
 
+healthcheck_proxy() {
+    /usr/bin/etcdhc proxy --port=:2378 --wait=60s &
+}
+
 standalone_node() {
+    healthcheck_proxy
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -48,6 +53,7 @@ standalone_node() {
 }
 
 restart_node() {
+    healthcheck_proxy
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -92,6 +98,7 @@ runtime_node() {
 
     etcdctln member add $NAME http://${IP}:2380
 
+    healthcheck_proxy
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -123,6 +130,7 @@ recover_node() {
 
     etcdctln member add $NAME http://${IP}:2380
 
+    healthcheck_proxy
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \

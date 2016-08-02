@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 ACCT=${ACCT:-llparse}
-VERSION=${VERSION:-v2.3.7-4}
+VERSION=${VERSION:-v2.3.7-5}
 
 docker build -t hcproxy -f Dockerfile.hcproxy .
 id=$(docker run -d --entrypoint=/bin/sh --name hcproxy hcproxy sleep 15)
