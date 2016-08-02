@@ -118,7 +118,7 @@ recover_node() {
             cluster=${cluster},
         fi
         cluster=${cluster}${name}=${peer_url}
-    done <<< "$(etcdctl member list | grep -v unstarted)"
+    done <<< "$(etcdctln member list | grep -v unstarted)"
     cluster=${cluster},${NAME}=http://${IP}:2380
 
     etcdctln member add $NAME http://${IP}:2380
@@ -187,6 +187,12 @@ node() {
     # if the DR flag is set, enter disaster recovery
     if [ -d "$DR_FLAG" ]; then
         disaster_node
+
+    # for previous versions, we had a different FS structure that must be upgraded
+    elif [ -d "$DATA_DIR/member" ]; then
+        mkdir -p $ETCD_DATA_DIR
+        mv $DATA_DIR/member $ETCD_DATA_DIR/
+        node
 
     # if we have a data volume, we are upgrading/restarting
     elif [ -d "$ETCD_DATA_DIR/member" ]; then
