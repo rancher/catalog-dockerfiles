@@ -37,7 +37,7 @@ etcdctln() {
 }
 
 healthcheck_proxy() {
-    /usr/bin/etcdhc proxy --port=:2378 --wait=60s &
+    /usr/bin/etcdhc proxy --port=:2378 --wait=60s --debug=false &
 }
 
 standalone_node() {
