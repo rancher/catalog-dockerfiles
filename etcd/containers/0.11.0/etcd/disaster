@@ -1,0 +1,17 @@
+#!/bin/bash
+
+DATA_DIR=/data
+DR_FLAG=${DATA_DIR}/DR
+
+mkdir -p $DR_FLAG
+
+echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
+
+sleep 1
+
+# Continuously send SIGTERM
+PID=$(pidof etcd)
+while kill -0 $PID &> /dev/null; do
+  kill $PID
+  sleep 1
+done
