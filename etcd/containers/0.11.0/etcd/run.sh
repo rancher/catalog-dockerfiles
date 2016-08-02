@@ -6,13 +6,16 @@ IP=$(giddyup ip myip)
 META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
-NAME=$(wget -q -O - ${META_URL}/self/container/name)
+HOST_UUID=$(wget -q -O - ${META_URL}/self/host/uuid)
 
 # be very careful that all state goes into the data container
 DATA_DIR=/data
 DR_FLAG=$DATA_DIR/DR
 export ETCD_DATA_DIR=$DATA_DIR/data.current
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
+
+# this "binds" a data dir to a host
+NAME=${HOST_UUID}
 
 etcdctln() {
     target=0
@@ -41,6 +44,9 @@ healthcheck_proxy() {
 }
 
 standalone_node() {
+    # write container IP to data directory for reference
+    echo $IP > $ETCD_DATA_DIR/ip
+
     healthcheck_proxy
     etcd \
         --name ${NAME} \
@@ -65,7 +71,6 @@ restart_node() {
 
 # Scale Up
 runtime_node() {
-
     # Get leader create_index
     # Wait for nodes with smaller service index to become healthy
     for container in $(giddyup service containers --exclude-self); do
@@ -82,7 +87,7 @@ runtime_node() {
     for container in $(wget -q -O - ${META_URL}/self/service/containers); do
         meta_index=$(echo $container | tr '=' '\n' | head -n1)
         ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/create_index)
-        container_name=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/name)
+        host_uuid=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/host_uuid)
 
         # simulate step-scale policy by ignoring create_indeces greater than our own
         if [ "${ctx_index}" -gt "${CREATE_INDEX}" ]; then
@@ -93,10 +98,13 @@ runtime_node() {
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
         fi
-        cluster=${cluster}${container_name}=http://${cip}:2380
+        cluster=${cluster}${host_uuid}=http://${cip}:2380
     done
 
     etcdctln member add $NAME http://${IP}:2380
+
+    # write container IP to data directory for reference
+    echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy
     etcd \
@@ -130,6 +138,9 @@ recover_node() {
 
     etcdctln member add $NAME http://${IP}:2380
 
+    # write container IP to data directory for reference
+    echo $IP > $ETCD_DATA_DIR/ip
+
     healthcheck_proxy
     etcd \
         --name ${NAME} \
@@ -142,17 +153,24 @@ recover_node() {
 }
 
 disaster_node() {
-    BACKUP_DIR=${DATA_DIR}/data.$(date +"%Y%m%d.%H%M%S").DR
+    RECOVERY_DIR=${DATA_DIR}/$(cat $DR_FLAG)
 
-    echo "Creating a DR backup..."
-    etcdctl backup \
-        --data-dir $ETCD_DATA_DIR \
-        --backup-dir $BACKUP_DIR
+    # ALWAYS backup the current dir
+    if [ "$RECOVERY_DIR" == "${DATA_DIR}/data.current" ]; then
+        BACKUP_DIR=${DATA_DIR}/data.$(date +"%Y%m%d.%H%M%S").DR
+
+        echo "Creating a backup..."
+        etcdctl backup \
+            --data-dir $RECOVERY_DIR \
+            --backup-dir $BACKUP_DIR
+
+        RECOVERY_DIR=$BACKUP_DIR
+    fi
     
-    echo "Sanitizing DR backup..."
+    echo "Sanitizing backup..."
     etcd \
         --name ${NAME} \
-        --data-dir $BACKUP_DIR \
+        --data-dir $RECOVERY_DIR \
         --force-new-cluster &
     PID=$!
 
@@ -180,31 +198,42 @@ disaster_node() {
         sleep 1
     done
 
-    echo "Copying sanitized DR backup to data directory..."
-    rm -rf $ETCD_DATA_DIR/*
-    cp -rf $BACKUP_DIR/* $ETCD_DATA_DIR/
+    echo "Copying sanitized backup to data directory..."
+    cp -rf $RECOVERY_DIR/* ${ETCD_DATA_DIR}/
 
     # remove the DR flag
-    rmdir $DR_FLAG
+    rm -rf $DR_FLAG
+
+    # TODO (llparse) kill all other etcd nodes
 
     # become a new standalone node
     standalone_node
 }
 
 node() {
+    mkdir -p $ETCD_DATA_DIR
+
     # if the DR flag is set, enter disaster recovery
-    if [ -d "$DR_FLAG" ]; then
+    if [ -f "$DR_FLAG" ]; then
         disaster_node
 
-    # for previous versions, we had a different FS structure that must be upgraded
-    elif [ -d "$DATA_DIR/member" ]; then
-        mkdir -p $ETCD_DATA_DIR
-        mv $DATA_DIR/member $ETCD_DATA_DIR/
-        node
-
-    # if we have a data volume, we are upgrading/restarting
+    # if we have a data volume
     elif [ -d "$ETCD_DATA_DIR/member" ]; then
-        restart_node
+
+        # if the data dir corresponds to an old IP or we don't know
+        if [ ! -f $ETCD_DATA_DIR/ip ] || [ "$(cat $ETCD_DATA_DIR/ip)" != "$IP" ]; then
+            # if there is quorum, discard the data and re-run node
+
+            # if there isn't quorum but there is a survivor, archive stale data and re-run node (entering 503)
+            mv $ETCD_DATA_DIR $DATA_DIR/data.$(date +"%Y%m%d.%H%M%S").STALE
+            node
+
+            # if all are dead, halt (user choice: brand new cluster, recover old cluster)
+
+        # if we have the same IP, restart
+        else
+            restart_node
+        fi
 
     elif giddyup leader check; then
         standalone_node

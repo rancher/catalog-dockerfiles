@@ -3,11 +3,26 @@
 DATA_DIR=/data
 DR_FLAG=${DATA_DIR}/DR
 
-mkdir -p $DR_FLAG
+cd $DATA_DIR
 
-echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
+echo -e '\nWhich backup do you want to recover?\n'
+dirlist=$(ls)
+dirarray=($dirlist)
 
-sleep 1
+i=1
+for dir in $dirlist; do
+  echo "$i) $dir";
+  i=$((i+1));
+done
+printf "Choose (${#dirarray[@]}):";
+
+read j
+
+selection=${dirarray[$((j-1))]}
+echo $selection > $DR_FLAG
+echo -e "\n'$selection' selected.\n\nTriggering disaster recovery...this will automatically restart the container."
+
+sleep 2
 
 # Continuously send SIGTERM
 PID=$(pidof etcd)
