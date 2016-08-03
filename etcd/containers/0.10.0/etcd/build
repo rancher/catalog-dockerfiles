@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+ACCT=${ACCT:-llparse}
+VERSION=${VERSION:-v2.3.7-6}
+
+docker build -t hcproxy -f Dockerfile.hcproxy .
+id=$(docker run -d --entrypoint=/bin/sh --name hcproxy hcproxy sleep 15)
+docker cp hcproxy:/go/src/etcdhc/etcdhc .
+docker rm -f $id
+
+docker build -t $ACCT/etcd:$VERSION .
+docker push $ACCT/etcd:$VERSION
+
+rm -f etcdhc
+
+if [ "$(which gsync)" ]; then
+  gsync $ACCT/etcd:$VERSION
+fi
