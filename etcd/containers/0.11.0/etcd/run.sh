@@ -40,7 +40,7 @@ etcdctln() {
 }
 
 healthcheck_proxy() {
-    /usr/bin/etcdhc proxy --port=:2378 --wait=60s &
+    /usr/bin/etcdhc proxy --port=:2378 --wait=60s --debug=false &
 }
 
 standalone_node() {
@@ -216,6 +216,12 @@ node() {
     # if the DR flag is set, enter disaster recovery
     if [ -f "$DR_FLAG" ]; then
         disaster_node
+
+    # for previous versions, we had a different FS structure that must be upgraded
+    elif [ -d "$DATA_DIR/member" ]; then
+        mkdir -p $ETCD_DATA_DIR
+        mv $DATA_DIR/member $ETCD_DATA_DIR/
+        node
 
     # if we have a data volume
     elif [ -d "$ETCD_DATA_DIR/member" ]; then
