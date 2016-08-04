@@ -14,23 +14,18 @@ DR_FLAG=$DATA_DIR/DR
 export ETCD_DATA_DIR=$DATA_DIR/data.current
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
 
-# this "binds" a data dir to a host
-NAME=${HOST_UUID}
+# member name should be dashed-IP (piggyback off of retain_ip functionality)
+NAME=$(echo $IP | tr '.' '-')
 
-etcdctln() {
+etcdctl_quorum() {
     target=0
-    for j in $(seq 1 5); do
-        for i in $(seq 1 $SCALE); do
-            giddyup probe http://${STACK_NAME}_etcd_${i}:2379/health &> /dev/null
-            if [ "$?" == "0" ]; then
-                target=$i
-                break
-            fi
-        done
-        if [ "$target" != "0" ]; then
+    # TODO (llparse) use metadata, not DNS
+    for i in $(seq 1 $SCALE); do
+        giddyup probe http://${STACK_NAME}_etcd_${i}:2379/health &> /dev/null
+        if [ "$?" == "0" ]; then
+            target=$i
             break
         fi
-        sleep 1
     done
     if [ "$target" == "0" ]; then
         echo No etcd nodes available
@@ -39,12 +34,51 @@ etcdctln() {
     fi
 }
 
+etcdctl_one() {
+    # TODO (llparse) implement
+    etcdctl_quorum $@
+}
+
 healthcheck_proxy() {
     /usr/bin/etcdhc proxy --port=:2378 --wait=60s --debug=false &
 }
 
+create_backup() {
+    backup_type=$1
+    target_dir=$2
+
+    backup_dir=${DATA_DIR}/data.$(date +"%Y%m%d.%H%M%S").${backup_type}
+
+    etcdctl backup \
+        --data-dir $target_dir \
+        --backup-dir $backup_dir
+
+    echo $backup_dir
+}
+
+cleanup() {
+    exitcode=$1
+    echo "Exited ($exitcode)"
+
+    # if we get exit code 0, member removed (archive data and mark as REMOVED)
+    if [ "$exitcode" == "0" ]; then
+        create_backup REMOVED $ETCD_DATA_DIR
+
+    # if we get exit code 2, log corrupted, truncated, lost (archive data and mark as CORRUPT)
+    elif [ "$exitcode" == "2" ]; then
+        create_backup CORRUPT $ETCD_DATA_DIR
+
+    # for unknown exit codes, create a backup anyway
+    else
+        create_backup EXIT${exitcode} $ETCD_DATA_DIR
+    fi
+
+    # delete the data directory
+    rm -rf $ETCD_DATA_DIR
+}
+
 standalone_node() {
-    # write container IP to data directory for reference
+    # write IP to data directory for reference
     echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy
@@ -56,6 +90,7 @@ standalone_node() {
         --initial-advertise-peer-urls http://${IP}:2380 \
         --initial-cluster ${NAME}=http://${IP}:2380 \
         --initial-cluster-state new
+    cleanup $?
 }
 
 restart_node() {
@@ -67,10 +102,15 @@ restart_node() {
         --listen-peer-urls http://0.0.0.0:2380 \
         --initial-advertise-peer-urls http://${IP}:2380 \
         --initial-cluster-state existing
+    cleanup $?
 }
 
 # Scale Up
 runtime_node() {
+    # explicitly backup and wipe any old data dir
+    create_backup RUNTIME $ETCD_DATA_DIR
+    rm -rf $ETCD_DATA_DIR
+
     # Get leader create_index
     # Wait for nodes with smaller service index to become healthy
     for container in $(giddyup service containers --exclude-self); do
@@ -87,7 +127,6 @@ runtime_node() {
     for container in $(wget -q -O - ${META_URL}/self/service/containers); do
         meta_index=$(echo $container | tr '=' '\n' | head -n1)
         ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/create_index)
-        host_uuid=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/host_uuid)
 
         # simulate step-scale policy by ignoring create_indeces greater than our own
         if [ "${ctx_index}" -gt "${CREATE_INDEX}" ]; then
@@ -95,13 +134,14 @@ runtime_node() {
         fi
 
         cip=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/primary_ip)
+        cname=$(echo $cip | tr '.' '-')
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
         fi
-        cluster=${cluster}${host_uuid}=http://${cip}:2380
+        cluster=${cluster}${cname}=http://${cip}:2380
     done
 
-    etcdctln member add $NAME http://${IP}:2380
+    etcdctl_quorum member add $NAME http://${IP}:2380
 
     # write container IP to data directory for reference
     echo $IP > $ETCD_DATA_DIR/ip
@@ -115,15 +155,16 @@ runtime_node() {
         --initial-advertise-peer-urls http://${IP}:2380 \
         --initial-cluster-state existing \
         --initial-cluster $cluster
+    cleanup $?
 }
 
 # recoverable failure scenario
 recover_node() {
     # figure out which node we are replacing
-    oldnode=$(etcdctln member list | grep "$NAME" | tr ':' '\n' | head -1)
+    oldnode=$(etcdctl_quorum member list | grep "$NAME" | tr ':' '\n' | head -1)
 
     # remove the old node
-    etcdctln member remove $oldnode
+    etcdctl_quorum member remove $oldnode
 
     # create cluster parameter based on etcd state (can't use rancher metadata)
     while read -r member; do
@@ -133,10 +174,10 @@ recover_node() {
             cluster=${cluster},
         fi
         cluster=${cluster}${name}=${peer_url}
-    done <<< "$(etcdctln member list | grep -v unstarted)"
+    done <<< "$(etcdctl_quorum member list | grep -v unstarted)"
     cluster=${cluster},${NAME}=http://${IP}:2380
 
-    etcdctln member add $NAME http://${IP}:2380
+    etcdctl_quorum member add $NAME http://${IP}:2380
 
     # write container IP to data directory for reference
     echo $IP > $ETCD_DATA_DIR/ip
@@ -150,21 +191,15 @@ recover_node() {
         --initial-advertise-peer-urls http://${IP}:2380 \
         --initial-cluster-state existing \
         --initial-cluster $cluster
+    cleanup $?
 }
 
 disaster_node() {
     RECOVERY_DIR=${DATA_DIR}/$(cat $DR_FLAG)
 
-    # ALWAYS backup the current dir
+    # always backup the current dir
     if [ "$RECOVERY_DIR" == "${DATA_DIR}/data.current" ]; then
-        BACKUP_DIR=${DATA_DIR}/data.$(date +"%Y%m%d.%H%M%S").DR
-
-        echo "Creating a backup..."
-        etcdctl backup \
-            --data-dir $RECOVERY_DIR \
-            --backup-dir $BACKUP_DIR
-
-        RECOVERY_DIR=$BACKUP_DIR
+        RECOVERY_DIR=$(create_backup DR $RECOVERY_DIR)
     fi
     
     echo "Sanitizing backup..."
@@ -223,29 +258,25 @@ node() {
         mv $DATA_DIR/member $ETCD_DATA_DIR/
         node
 
-    # if we have a data volume
-    elif [ -d "$ETCD_DATA_DIR/member" ]; then
+    # if we have a data volume and it was served by a container with same IP
+    elif [ -d "$ETCD_DATA_DIR/member" ] && [ "$(cat $ETCD_DATA_DIR/ip)" == "$IP" ]; then
+        restart_node
 
-        # if the data dir corresponds to an old IP or we don't know
-        if [ ! -f $ETCD_DATA_DIR/ip ] || [ "$(cat $ETCD_DATA_DIR/ip)" != "$IP" ]; then
-            # if there is quorum, discard the data and re-run node
+    # if we are the first etcd to start
+    elif giddyup leader check; then
 
-            # if there isn't quorum but there is a survivor, archive stale data and re-run node (entering 503)
-            mv $ETCD_DATA_DIR $DATA_DIR/data.$(date +"%Y%m%d.%H%M%S").STALE
-            node
+        # if we have an old data dir, trigger an automatic disaster recovery (tee-hee)
+        if [ -d "$ETCD_DATA_DIR/member" ]; then
+            echo data.current > $DR_FLAG
+            disaster_node
 
-            # if all are dead, halt (user choice: brand new cluster, recover old cluster)
-
-        # if we have the same IP, restart
+        # otherwise, start a new cluster
         else
-            restart_node
+            standalone_node
         fi
 
-    elif giddyup leader check; then
-        standalone_node
-
     # if this member is already registered to the cluster but no data volume, we are recovering
-    elif [ "$(etcdctln member list | grep $NAME)" != "" ]; then
+    elif [ "$(etcdctl_one member list | grep $NAME)" != "" ]; then
         recover_node
 
     # we are scaling up
