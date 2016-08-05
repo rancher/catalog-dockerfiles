@@ -12,7 +12,7 @@ RUN \
   mv /tmp/etcd-*/etcdctl /usr/local/bin/etcdctl && \
   rm -rf /tmp/etcd-* && rm -f /etcd-*.tar.gz
 
-ADD etcdhc /usr/bin/etcdhc
+ADD etcdwrapper /usr/bin/etcdwrapper
 ADD run.sh /run.sh
 ADD disaster /usr/bin/disaster
 

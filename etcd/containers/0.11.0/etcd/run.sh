@@ -18,19 +18,21 @@ export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
 NAME=$(echo $IP | tr '.' '-')
 
 etcdctl_quorum() {
-    target=0
-    # TODO (llparse) use metadata, not DNS
-    for i in $(seq 1 $SCALE); do
-        giddyup probe http://${STACK_NAME}_etcd_${i}:2379/health &> /dev/null
+    target_ip=0
+    for container in $(wget -q -O - ${META_URL}/self/service/containers); do
+        meta_index=$(echo $container | tr '=' '\n' | head -n1)
+        primary_ip=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/primary_ip)
+
+        giddyup probe http://${primary_ip}:2379/health &> /dev/null
         if [ "$?" == "0" ]; then
-            target=$i
+            target_ip=$primary_ip
             break
         fi
     done
-    if [ "$target" == "0" ]; then
+    if [ "$target_ip" == "0" ]; then
         echo No etcd nodes available
     else
-        etcdctl --endpoints http://${STACK_NAME}_etcd_$target:2379 $@
+        etcdctl --endpoints http://${primary_ip}:2379 $@
     fi
 }
 
@@ -40,7 +42,7 @@ etcdctl_one() {
 }
 
 healthcheck_proxy() {
-    /usr/bin/etcdhc proxy --port=:2378 --wait=60s --debug=false &
+    /usr/bin/etcdwrapper healthcheck-proxy --port=:2378 --wait=60s --debug=false
 }
 
 create_backup() {
@@ -81,7 +83,7 @@ standalone_node() {
     # write IP to data directory for reference
     echo $IP > $ETCD_DATA_DIR/ip
 
-    healthcheck_proxy
+    healthcheck_proxy &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -94,7 +96,7 @@ standalone_node() {
 }
 
 restart_node() {
-    healthcheck_proxy
+    healthcheck_proxy &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -116,8 +118,9 @@ runtime_node() {
     for container in $(giddyup service containers --exclude-self); do
         echo Waiting for lower index nodes to all be active
         ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${container}/create_index)
+        primary_ip=$(wget -q -O - ${META_URL}/self/service/containers/${container}/primary_ip)
         if [ "${ctx_index}" -lt "${CREATE_INDEX}" ]; then
-            giddyup probe http://${container}:2379/health --loop --min 1s --max 15s --backoff 1.2
+            giddyup probe http://${primary_ip}:2379/health --loop --min 1s --max 15s --backoff 1.2
         fi
     done
 
@@ -146,7 +149,7 @@ runtime_node() {
     # write container IP to data directory for reference
     echo $IP > $ETCD_DATA_DIR/ip
 
-    healthcheck_proxy
+    healthcheck_proxy &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -182,7 +185,7 @@ recover_node() {
     # write container IP to data directory for reference
     echo $IP > $ETCD_DATA_DIR/ip
 
-    healthcheck_proxy
+    healthcheck_proxy &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -248,15 +251,18 @@ disaster_node() {
 node() {
     mkdir -p $ETCD_DATA_DIR
 
-    # if the DR flag is set, enter disaster recovery
-    if [ -f "$DR_FLAG" ]; then
-        disaster_node
-
-    # for previous versions, we had a different FS structure that must be upgraded
-    elif [ -d "$DATA_DIR/member" ]; then
+    if [ -d "$DATA_DIR/member" ]; then
+        echo "Upgrading FS structure from version <= etcd:v2.3.6-4 to etcd:v2.3.7-6"
         mkdir -p $ETCD_DATA_DIR
         mv $DATA_DIR/member $ETCD_DATA_DIR/
         node
+
+    # TODO (llparse) Migrate data dir to new named-volume data container
+    # echo "Upgrading FS structure from version = rancher/etcd:v2.3.7-6 to current"
+
+    # if the DR flag is set, enter disaster recovery
+    elif [ -f "$DR_FLAG" ]; then
+        disaster_node
 
     # if we have a data volume and it was served by a container with same IP
     elif [ -d "$ETCD_DATA_DIR/member" ] && [ "$(cat $ETCD_DATA_DIR/ip)" == "$IP" ]; then

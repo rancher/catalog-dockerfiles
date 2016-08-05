@@ -14,18 +14,19 @@ import (
 
 func main() {
   app := cli.NewApp()
-  app.Name = "Etcd healthcheck proxy"
-  app.Usage = "Ensure Etcd's raft index has caught up with the cluster before reporting healthy"
+  app.Name = "Etcd Wrapper"
+  app.Usage = "Utility services for Etcd clusters"
   app.Commands = []cli.Command{
-    ProxyCommand(),
+    HealthcheckProxyCommand(),
+    RollingBackupCommand(),
   }
   app.Run(os.Args)
 }
 
-func ProxyCommand() cli.Command {
+func HealthcheckProxyCommand() cli.Command {
   return cli.Command{
-    Name:  "proxy",
-    Usage: "Proxy health checks after a waiting period",
+    Name:  "healthcheck-proxy",
+    Usage: "Proxy health checks with a waiting period to ensure raft index has caught up with the cluster",
     Action: ProxyAction,
     Flags: []cli.Flag{
       cli.StringFlag{
@@ -43,6 +44,31 @@ func ProxyCommand() cli.Command {
       cli.BoolFlag{
         Name:  "raft",
         Usage: "Wait for raft indeces to all be in range (requires etcd version >= v3.0.0)",
+      },
+      cli.BoolFlag{
+        Name:  "debug",
+        Usage: "Verbose logging information for debugging purposes",
+        EnvVar: "RANCHER_DEBUG",
+      },
+    },
+  }
+}
+
+func RollingBackupCommand() cli.Command {
+  return cli.Command{
+    Name:  "rolling-backup",
+    Usage: "Perform rolling backups",
+    Action: RollingBackupAction,
+    Flags: []cli.Flag{
+      cli.DurationFlag{
+        Name:  "period",
+        Usage: "Perform backups at this time interval",
+        Value: 5 * time.Minute,
+      },
+      cli.DurationFlag{
+        Name:  "retention",
+        Usage: "Retain backups for this time interval",
+        Value: 24 * time.Hour,
       },
       cli.BoolFlag{
         Name:  "debug",
@@ -75,6 +101,13 @@ func ProxyAction(c *cli.Context) error {
   return http.ListenAndServe(c.String("port"), nil)
 }
 
+func RollingBackupAction(c *cli.Context) error {
+  log.Println("Unimplemented")
+  time.Sleep(c.Duration("period"))
+  return nil
+}
+
+// TODO (llparse): inherit this function from giddyup
 func HealthCheck(endpoint string, timeout time.Duration) error {
   url, err := url.Parse(endpoint)
   if err != nil {
