@@ -10,7 +10,21 @@ import (
   "time"
   "os"
   "log"
+  "os/exec"
+  "io/ioutil"
+  "regexp"
 )
+
+const (
+  backupBaseDir = "/data-backup"
+  backupFormat = "data.20060102.150405"
+)
+
+var backupRegexp *regexp.Regexp
+
+func init() {
+  backupRegexp = regexp.MustCompile(`^data.[0-9]{8}.[0-9]{6}$`)
+}
 
 func main() {
   app := cli.NewApp()
@@ -102,9 +116,71 @@ func ProxyAction(c *cli.Context) error {
 }
 
 func RollingBackupAction(c *cli.Context) error {
-  log.Println("Unimplemented")
-  time.Sleep(c.Duration("period"))
+  backupPeriod := c.Duration("period")
+  retentionPeriod := c.Duration("retention")
+
+  log.Printf("Performing backups every %v with a %v retention period", backupPeriod, retentionPeriod)
+
+  backupTicker := time.NewTicker(backupPeriod)
+  for {
+    select {
+    case backupTime := <-backupTicker.C:
+      CreateBackup(backupTime)
+      PurgeBackups(backupTime, retentionPeriod)
+    }
+  }
   return nil
+}
+
+func CreateBackup(t time.Time) {
+  for retry := true; retry == true; {
+    dataDir := "/data/data.current"
+    backupDir := fmt.Sprintf("%s/data.%d%02d%02d.%02d%02d%02d", backupBaseDir,
+      t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+
+    cmd := exec.Command("etcdctl", "backup", "--data-dir", dataDir, "--backup-dir", backupDir)
+
+    startTime := time.Now()
+    if err := cmd.Run(); err != nil {
+      log.Println(err.Error())
+      time.Sleep(15 * time.Second)
+    } else {
+      log.Printf("Created backup in %v", time.Now().Sub(startTime))
+      retry = false
+    }
+  }
+}
+
+func PurgeBackups(backupTime time.Time, retentionPeriod time.Duration) {
+  cutoffTime := backupTime.Add(retentionPeriod * -1)
+
+  files, err := ioutil.ReadDir(backupBaseDir)
+  if err != nil {
+    log.Fatal(err)
+  }
+  for _, file := range files {
+    if !file.IsDir() {
+      continue
+    }
+
+    if !backupRegexp.MatchString(file.Name()) {
+      log.Printf("unrecognized backup: %v", file.Name())      
+    } else {
+      backupTime, err2 := time.Parse(backupFormat, file.Name())
+      if err2 != nil {
+        log.Println(err2)
+      } else if backupTime.Before(cutoffTime) {
+        toDelete := fmt.Sprintf("%s/%s", backupBaseDir, file.Name())
+        cmd := exec.Command("rm", "-rf", toDelete)
+
+        if err := cmd.Run(); err != nil {
+          log.Printf("Couldn't delete backup %v", toDelete)
+        } else {
+          log.Printf("Deleted backup %v", toDelete)
+        }
+      }
+    }
+  }
 }
 
 // TODO (llparse): inherit this function from giddyup

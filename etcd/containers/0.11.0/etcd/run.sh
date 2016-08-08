@@ -42,7 +42,7 @@ etcdctl_one() {
 }
 
 healthcheck_proxy() {
-    /usr/bin/etcdwrapper healthcheck-proxy --port=:2378 --wait=60s --debug=false
+    etcdwrapper healthcheck-proxy --port=:2378 --wait=60s --debug=false
 }
 
 create_backup() {
@@ -56,6 +56,16 @@ create_backup() {
         --backup-dir $backup_dir
 
     echo $backup_dir
+}
+
+rolling_backup() {
+    BACKUP_PERIOD=${ETCD_BACKUP_PERIOD:-5m}
+    BACKUP_RETENTION=${ETCD_BACKUP_RETENTION:-24h}
+
+    giddyup leader elect --proxy-tcp-port=2160 \
+        etcdwrapper rolling-backup \
+            --period=$BACKUP_PERIOD \
+            --retention=$BACKUP_RETENTION
 }
 
 cleanup() {
@@ -237,6 +247,7 @@ disaster_node() {
     done
 
     echo "Copying sanitized backup to data directory..."
+    rm -rf ${ETCD_DATA_DIR}/*
     cp -rf $RECOVERY_DIR/* ${ETCD_DATA_DIR}/
 
     # remove the DR flag
