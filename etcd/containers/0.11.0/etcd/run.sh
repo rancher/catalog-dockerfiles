@@ -20,9 +20,8 @@ NAME=$(echo $IP | tr '.' '-')
 
 etcdctl_quorum() {
     target_ip=0
-    for container in $(wget -q -O - ${META_URL}/self/service/containers); do
-        meta_index=$(echo $container | tr '=' '\n' | head -n1)
-        primary_ip=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/primary_ip)
+    for container in $(giddyup service containers); do
+        primary_ip=$(wget -q -O - ${META_URL}/self/service/containers/${container}/primary_ip)
 
         giddyup probe http://${primary_ip}:2379/health &> /dev/null
         if [ "$?" == "0" ]; then
@@ -37,9 +36,23 @@ etcdctl_quorum() {
     fi
 }
 
+# may only be used for quorum=false reads
 etcdctl_one() {
-    # TODO (llparse) implement
-    etcdctl_quorum $@
+    target_ip=0
+    for container in $(giddyup service containers); do
+        primary_ip=$(wget -q -O - ${META_URL}/self/service/containers/${container}/primary_ip)
+
+        giddyup probe tcp://${primary_ip}:2379 &> /dev/null
+        if [ "$?" == "0" ]; then
+            target_ip=$primary_ip
+            break
+        fi
+    done
+    if [ "$target_ip" == "0" ]; then
+        echo No etcd nodes available
+    else
+        etcdctl --endpoints http://${primary_ip}:2379 $@
+    fi
 }
 
 healthcheck_proxy() {
@@ -71,21 +84,19 @@ rolling_backup() {
 
 cleanup() {
     exitcode=$1
+    timestamp=$(date --rfc-3339=seconds)
     echo "Exited ($exitcode)"
 
-    # if we get exit code 0, member removed (archive data and mark as REMOVED)
     if [ "$exitcode" == "0" ]; then
-        create_backup REMOVED $ETCD_DATA_DIR
         rm -rf $ETCD_DATA_DIR
+        echo "$timestamp -> Exit (0), member removed. Deleted data" >> $DATA_DIR/events
 
-    # if we get exit code 2, log corrupted, truncated, lost (archive data and mark as CORRUPT)
     elif [ "$exitcode" == "2" ]; then
-        create_backup CORRUPT $ETCD_DATA_DIR
         rm -rf $ETCD_DATA_DIR
+        echo "$timestamp -> Exit (2), log corrupted, truncated, lost. Deleted data" >> $DATA_DIR/events
 
-    # for unknown exit codes, create a backup anyway
     else
-        create_backup EXIT${exitcode} $ETCD_DATA_DIR
+        echo "$timestamp -> Exit ($exitcode), unknown. No action taken" >> $DATA_DIR/events
     fi
 }
 
@@ -120,8 +131,11 @@ restart_node() {
 # Scale Up
 runtime_node() {
     # explicitly backup and wipe any old data dir
-    create_backup RUNTIME $ETCD_DATA_DIR
-    rm -rf $ETCD_DATA_DIR
+    if [ -d "$ETCD_DATA_DIR/member" ]; then
+        rm -rf $ETCD_DATA_DIR/*
+        timestamp=$(date --rfc-3339=seconds)
+        echo "$timestamp -> Scaling up. Deleted stale data" >> $DATA_DIR/events
+    fi
 
     # Get leader create_index
     # Wait for nodes with smaller service index to become healthy
@@ -137,16 +151,15 @@ runtime_node() {
     # We can almost use giddyup here, need service index templating {{service_index}}
     # giddyup ip stringify --prefix etcd{{service_index}}=http:// --suffix :2380
     # etcd1=http://10.42.175.109:2380,etcd2=http://10.42.58.73:2380,etcd3=http://10.42.96.222:2380
-    for container in $(wget -q -O - ${META_URL}/self/service/containers); do
-        meta_index=$(echo $container | tr '=' '\n' | head -n1)
-        ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/create_index)
+    for container in $(giddyup service containers); do
+        ctx_index=$(wget -q -O - ${META_URL}/self/service/containers/${container}/create_index)
 
         # simulate step-scale policy by ignoring create_indeces greater than our own
         if [ "${ctx_index}" -gt "${CREATE_INDEX}" ]; then
             continue
         fi
 
-        cip=$(wget -q -O - ${META_URL}/self/service/containers/${meta_index}/primary_ip)
+        cip=$(wget -q -O - ${META_URL}/self/service/containers/${container}/primary_ip)
         cname=$(echo $cip | tr '.' '-')
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
@@ -298,7 +311,7 @@ node() {
         fi
 
     # if this member is already registered to the cluster but no data volume, we are recovering
-    elif [ "$(etcdctl_one member list | grep $NAME)" != "" ]; then
+    elif [ "$(etcdctl_one member list | grep $NAME)" ]; then
         recover_node
 
     # we are scaling up

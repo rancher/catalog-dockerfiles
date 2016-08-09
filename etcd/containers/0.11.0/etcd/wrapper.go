@@ -1,30 +1,28 @@
 package main
 
 import (
-  "github.com/urfave/cli"
   "errors"
   "fmt"
+  "io/ioutil"
   "net"
   "net/http"
   "net/url"
-  "time"
   "os"
-  "log"
   "os/exec"
-  "io/ioutil"
-  "regexp"
+  "time"
+
+  log "github.com/Sirupsen/logrus"
+  "github.com/urfave/cli"
 )
 
 const (
   dataDir = "/pdata/data.current"
   backupBaseDir = "/data-backup"
-  backupFormat = "data.20060102.150405"
+  backupRetries = 4
 )
 
-var backupRegexp *regexp.Regexp
-
 func init() {
-  backupRegexp = regexp.MustCompile(`^data.[0-9]{8}.[0-9]{6}$`)
+  log.SetOutput(os.Stderr)
 }
 
 func main() {
@@ -94,20 +92,29 @@ func RollingBackupCommand() cli.Command {
   }
 }
 
+func SetLoggingLevel(debug bool) {
+  if debug {
+    log.SetLevel(log.DebugLevel)
+  } else {
+    log.SetLevel(log.InfoLevel)
+  }
+}
+
 func ProxyAction(c *cli.Context) error {
+  SetLoggingLevel(c.Bool("debug"))
+
   http.HandleFunc("/health", func (w http.ResponseWriter, r *http.Request) {
     err := HealthCheck("tcp://127.0.0.1:2379", 5 * time.Second)
 
     if err == nil {
       fmt.Fprintf(w, "OK")
-      if c.Bool("debug") {
-        log.Println("OK")
-      }
+      log.Debug("HealthCheck succeeded")
+
     } else {
       http.Error(w, err.Error(), http.StatusServiceUnavailable)
-      if c.Bool("debug") {
-        log.Println(err.Error())
-      }
+      log.WithFields(log.Fields{
+        "error": err.Error(),
+      }).Debug("HealthCheck failed")
     }
   })
 
@@ -117,69 +124,118 @@ func ProxyAction(c *cli.Context) error {
 }
 
 func RollingBackupAction(c *cli.Context) error {
+  SetLoggingLevel(c.Bool("debug"))
+
   backupPeriod := c.Duration("period")
   retentionPeriod := c.Duration("retention")
 
-  log.Printf("Performing backups every %v with a %v retention period", backupPeriod, retentionPeriod)
+  log.WithFields(log.Fields{
+    "period": backupPeriod,
+    "retention": retentionPeriod,
+  }).Info("Initializing Rolling Backups")
 
   backupTicker := time.NewTicker(backupPeriod)
   for {
     select {
     case backupTime := <-backupTicker.C:
       CreateBackup(backupTime)
-      PurgeBackups(backupTime, retentionPeriod)
+      DeleteBackups(backupTime, retentionPeriod)
     }
   }
   return nil
 }
 
 func CreateBackup(t time.Time) {
-  for retry := true; retry == true; {
-    backupDir := fmt.Sprintf("%s/data.%d%02d%02d.%02d%02d%02d", backupBaseDir,
-      t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+  var err error
+  failureInterval := 15 * time.Second
+  backupName := t.Format(time.RFC3339)
+  backupDir := fmt.Sprintf("%s/%s", backupBaseDir, backupName)
 
-    cmd := exec.Command("etcdctl", "backup", "--data-dir", dataDir, "--backup-dir", backupDir)
+  cmd := exec.Command("etcdctl", "backup", "--data-dir", dataDir, "--backup-dir", backupDir)
+
+  for retries := 0; retries <= backupRetries; retries += 1 {
+    if retries > 0 {
+      time.Sleep(failureInterval)      
+    }
 
     startTime := time.Now()
-    if err := cmd.Run(); err != nil {
-      log.Println(err.Error())
-      time.Sleep(15 * time.Second)
+    err = cmd.Run()
+    endTime := time.Now()
+
+    if err != nil {
+      log.WithFields(log.Fields{
+        "attempt": retries + 1,
+        "message": err.Error(),
+      }).Warn("Backup failed")
+
     } else {
-      log.Printf("Created backup in %v", time.Now().Sub(startTime))
-      retry = false
+      log.WithFields(log.Fields{
+        "name": backupName,
+        "runtime": endTime.Sub(startTime),
+      }).Info("Created backup")
+      break
+    }
+  }
+
+  if err != nil {
+    log.WithFields(log.Fields{
+      "name": backupName,
+    }).Fatal("Couldn't create backup!")
+  }
+}
+
+func DeleteBackups(backupTime time.Time, retentionPeriod time.Duration) {
+  files, err := ioutil.ReadDir(backupBaseDir)
+  if err != nil {
+    log.WithFields(log.Fields{
+      "dir": backupBaseDir,
+      "message": err.Error(),
+    }).Fatal("Can't read backup directory")    
+  }
+
+  cutoffTime := backupTime.Add(retentionPeriod * -1)
+
+  for _, file := range files {
+    if !file.IsDir() {
+      log.WithFields(log.Fields{
+        "name": file.Name(),
+      }).Warn("Ignored non-directory")
+      continue
+    }
+
+    backupTime, err2 := time.Parse(time.RFC3339, file.Name())
+    if err2 != nil {
+      log.WithFields(log.Fields{
+        "name": file.Name(),
+        "message": err.Error(),
+      }).Warn("Couldn't parse backup")
+
+    } else if backupTime.Before(cutoffTime) {
+      DeleteBackup(file)
     }
   }
 }
 
-func PurgeBackups(backupTime time.Time, retentionPeriod time.Duration) {
-  cutoffTime := backupTime.Add(retentionPeriod * -1)
+func DeleteBackup(file os.FileInfo) {
+  toDelete := fmt.Sprintf("%s/%s", backupBaseDir, file.Name())
 
-  files, err := ioutil.ReadDir(backupBaseDir)
-  if err != nil {
-    log.Fatal(err)
-  }
-  for _, file := range files {
-    if !file.IsDir() {
-      continue
-    }
+  cmd := exec.Command("rm", "-r", toDelete)
 
-    if !backupRegexp.MatchString(file.Name()) {
-      log.Printf("unrecognized backup: %v", file.Name())      
-    } else {
-      backupTime, err2 := time.Parse(backupFormat, file.Name())
-      if err2 != nil {
-        log.Println(err2)
-      } else if backupTime.Before(cutoffTime) {
-        toDelete := fmt.Sprintf("%s/%s", backupBaseDir, file.Name())
-        cmd := exec.Command("rm", "-rf", toDelete)
+  startTime := time.Now()
+  err2 := cmd.Run()
+  endTime := time.Now()
 
-        if err := cmd.Run(); err != nil {
-          log.Printf("Couldn't delete backup %v", toDelete)
-        } else {
-          log.Printf("Deleted backup %v", toDelete)
-        }
-      }
-    }
+  if err2 != nil {
+    log.WithFields(log.Fields{
+      "name": file.Name(),
+      "message": err2.Error(),
+    }).Warn("Delete backup failed")
+
+  } else {
+    log.WithFields(log.Fields{
+      "name": file.Name(),
+      "runtime": endTime.Sub(startTime),
+    }).Info("Deleted backup")
   }
 }
 
