@@ -9,7 +9,8 @@ CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
 HOST_UUID=$(wget -q -O - ${META_URL}/self/host/uuid)
 
 # be very careful that all state goes into the data container
-DATA_DIR=/data
+LEGACY_DATA_DIR=/data
+DATA_DIR=/pdata
 DR_FLAG=$DATA_DIR/DR
 export ETCD_DATA_DIR=$DATA_DIR/data.current
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
@@ -59,8 +60,8 @@ create_backup() {
 }
 
 rolling_backup() {
-    BACKUP_PERIOD=${ETCD_BACKUP_PERIOD:-5m}
-    BACKUP_RETENTION=${ETCD_BACKUP_RETENTION:-24h}
+    BACKUP_PERIOD=${BACKUP_PERIOD:-5m}
+    BACKUP_RETENTION=${BACKUP_RETENTION:-24h}
 
     giddyup leader elect --proxy-tcp-port=2160 \
         etcdwrapper rolling-backup \
@@ -75,18 +76,17 @@ cleanup() {
     # if we get exit code 0, member removed (archive data and mark as REMOVED)
     if [ "$exitcode" == "0" ]; then
         create_backup REMOVED $ETCD_DATA_DIR
+        rm -rf $ETCD_DATA_DIR
 
     # if we get exit code 2, log corrupted, truncated, lost (archive data and mark as CORRUPT)
     elif [ "$exitcode" == "2" ]; then
         create_backup CORRUPT $ETCD_DATA_DIR
+        rm -rf $ETCD_DATA_DIR
 
     # for unknown exit codes, create a backup anyway
     else
         create_backup EXIT${exitcode} $ETCD_DATA_DIR
     fi
-
-    # delete the data directory
-    rm -rf $ETCD_DATA_DIR
 }
 
 standalone_node() {
@@ -247,6 +247,7 @@ disaster_node() {
     done
 
     echo "Copying sanitized backup to data directory..."
+    mkdir -p ${ETCD_DATA_DIR}
     rm -rf ${ETCD_DATA_DIR}/*
     cp -rf $RECOVERY_DIR/* ${ETCD_DATA_DIR}/
 
@@ -260,16 +261,20 @@ disaster_node() {
 }
 
 node() {
-    mkdir -p $ETCD_DATA_DIR
 
-    if [ -d "$DATA_DIR/member" ]; then
+    if [ -d "$LEGACY_DATA_DIR/member" ]; then
         echo "Upgrading FS structure from version <= etcd:v2.3.6-4 to etcd:v2.3.7-6"
-        mkdir -p $ETCD_DATA_DIR
-        mv $DATA_DIR/member $ETCD_DATA_DIR/
+        mkdir -p $LEGACY_DATA_DIR/data.current
+        mv $LEGACY_DATA_DIR/member $LEGACY_DATA_DIR/data.current/
         node
 
-    # TODO (llparse) Migrate data dir to new named-volume data container
-    # echo "Upgrading FS structure from version = rancher/etcd:v2.3.7-6 to current"
+    elif [ -d "$LEGACY_DATA_DIR/data.current" ]; then
+        echo "Upgrading FS structure from version = rancher/etcd:v2.3.7-6 to current"
+        mkdir -p $ETCD_DATA_DIR
+        mv $LEGACY_DATA_DIR/data.current/member $ETCD_DATA_DIR/
+        rm -rf $LEGACY_DATA_DIR/data.current
+        echo $IP > $ETCD_DATA_DIR/ip
+        node
 
     # if the DR flag is set, enter disaster recovery
     elif [ -f "$DR_FLAG" ]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATA_DIR=/data
+DATA_DIR=/pdata
 DR_FLAG=${DATA_DIR}/DR
 
 cd $DATA_DIR

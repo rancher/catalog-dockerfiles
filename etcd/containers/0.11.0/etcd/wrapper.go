@@ -16,6 +16,7 @@ import (
 )
 
 const (
+  dataDir = "/pdata/data.current"
   backupBaseDir = "/data-backup"
   backupFormat = "data.20060102.150405"
 )
@@ -134,7 +135,6 @@ func RollingBackupAction(c *cli.Context) error {
 
 func CreateBackup(t time.Time) {
   for retry := true; retry == true; {
-    dataDir := "/data/data.current"
     backupDir := fmt.Sprintf("%s/data.%d%02d%02d.%02d%02d%02d", backupBaseDir,
       t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 
