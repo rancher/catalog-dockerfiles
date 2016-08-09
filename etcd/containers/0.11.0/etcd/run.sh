@@ -84,7 +84,7 @@ rolling_backup() {
 
 cleanup() {
     exitcode=$1
-    timestamp=$(date --rfc-3339=seconds)
+    timestamp=$(date -R)
     echo "Exited ($exitcode)"
 
     if [ "$exitcode" == "0" ]; then
@@ -133,7 +133,7 @@ runtime_node() {
     # explicitly backup and wipe any old data dir
     if [ -d "$ETCD_DATA_DIR/member" ]; then
         rm -rf $ETCD_DATA_DIR/*
-        timestamp=$(date --rfc-3339=seconds)
+        timestamp=$(date -R)
         echo "$timestamp -> Scaling up. Deleted stale data" >> $DATA_DIR/events
     fi
 
