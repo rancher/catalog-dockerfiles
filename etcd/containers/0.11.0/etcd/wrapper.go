@@ -149,14 +149,17 @@ func CreateBackup(t time.Time) {
   var err error
   failureInterval := 15 * time.Second
   backupName := t.Format(time.RFC3339)
+  tempDir := fmt.Sprintf("/tmp/%s", backupName)
   backupDir := fmt.Sprintf("%s/%s", backupBaseDir, backupName)
-
-  cmd := exec.Command("etcdctl", "backup", "--data-dir", dataDir, "--backup-dir", backupDir)
 
   for retries := 0; retries <= backupRetries; retries += 1 {
     if retries > 0 {
       time.Sleep(failureInterval)      
     }
+
+    // write to a temporary location because etcd v2.3.7 doesn't play nice with NFS v4
+    // https://github.com/coreos/etcd/issues/5537
+    cmd := exec.Command("etcdctl", "backup", "--data-dir", dataDir, "--backup-dir", tempDir)
 
     startTime := time.Now()
     err = cmd.Run()
@@ -165,15 +168,27 @@ func CreateBackup(t time.Time) {
     if err != nil {
       log.WithFields(log.Fields{
         "attempt": retries + 1,
-        "message": err.Error(),
+        "error": err,
       }).Warn("Backup failed")
 
     } else {
-      log.WithFields(log.Fields{
-        "name": backupName,
-        "runtime": endTime.Sub(startTime),
-      }).Info("Created backup")
-      break
+      // move backup from temp location
+      cmd = exec.Command("mv", tempDir, backupDir)
+      err = cmd.Run()
+
+      if err != nil {
+        log.WithFields(log.Fields{
+          "attempt": retries + 1,
+          "error": err,
+        }).Warn("Moving backup failed")
+
+      } else {
+        log.WithFields(log.Fields{
+          "name": backupName,
+          "runtime": endTime.Sub(startTime),
+        }).Info("Created backup")
+        break
+      }
     }
   }
 
@@ -189,7 +204,7 @@ func DeleteBackups(backupTime time.Time, retentionPeriod time.Duration) {
   if err != nil {
     log.WithFields(log.Fields{
       "dir": backupBaseDir,
-      "message": err.Error(),
+      "error": err,
     }).Fatal("Can't read backup directory")    
   }
 
@@ -207,7 +222,7 @@ func DeleteBackups(backupTime time.Time, retentionPeriod time.Duration) {
     if err2 != nil {
       log.WithFields(log.Fields{
         "name": file.Name(),
-        "message": err.Error(),
+        "error": err2,
       }).Warn("Couldn't parse backup")
 
     } else if backupTime.Before(cutoffTime) {
@@ -228,7 +243,7 @@ func DeleteBackup(file os.FileInfo) {
   if err2 != nil {
     log.WithFields(log.Fields{
       "name": file.Name(),
-      "message": err2.Error(),
+      "error": err2,
     }).Warn("Delete backup failed")
 
   } else {
