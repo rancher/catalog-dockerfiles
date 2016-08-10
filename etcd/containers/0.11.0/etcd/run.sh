@@ -56,7 +56,8 @@ etcdctl_one() {
 }
 
 healthcheck_proxy() {
-    etcdwrapper healthcheck-proxy --port=:2378 --wait=60s --debug=false
+    WAIT=${1:-60s}
+    etcdwrapper healthcheck-proxy --port=:2378 --wait=$WAIT --debug=false
 }
 
 create_backup() {
@@ -98,13 +99,17 @@ cleanup() {
     else
         echo "$timestamp -> Exit ($exitcode), unknown. No action taken" >> $DATA_DIR/events
     fi
+
+    # It's important that we return the exit code of etcd, otherwise scheduler might not delete/recreate
+    # failed containers, leading to stale create_index which messes up `giddyup leader check`
+    exit $exitcode
 }
 
 standalone_node() {
     # write IP to data directory for reference
     echo $IP > $ETCD_DATA_DIR/ip
 
-    healthcheck_proxy &
+    healthcheck_proxy 0s &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -274,6 +279,7 @@ disaster_node() {
 }
 
 node() {
+    mkdir -p $ETCD_DATA_DIR
 
     if [ -d "$LEGACY_DATA_DIR/member" ]; then
         echo "Upgrading FS structure from version <= etcd:v2.3.6-4 to etcd:v2.3.7-6"
@@ -297,6 +303,10 @@ node() {
     elif [ -d "$ETCD_DATA_DIR/member" ] && [ "$(cat $ETCD_DATA_DIR/ip)" == "$IP" ]; then
         restart_node
 
+    # if this member is already registered to the cluster but no data volume, we are recovering
+    elif [ "$(etcdctl_one member list | grep $NAME)" ]; then
+        recover_node
+
     # if we are the first etcd to start
     elif giddyup leader check; then
 
@@ -309,10 +319,6 @@ node() {
         else
             standalone_node
         fi
-
-    # if this member is already registered to the cluster but no data volume, we are recovering
-    elif [ "$(etcdctl_one member list | grep $NAME)" ]; then
-        recover_node
 
     # we are scaling up
     else
