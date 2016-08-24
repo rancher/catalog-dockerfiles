@@ -8,7 +8,7 @@ cd $DATA_DIR
 echo 'data.current' > $DR_FLAG
 echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
 
-sleep 2
+sleep 5
 
 # Continuously send SIGTERM
 PID=$(pidof etcd)

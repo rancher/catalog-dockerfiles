@@ -74,13 +74,17 @@ create_backup() {
 }
 
 rolling_backup() {
-    BACKUP_PERIOD=${BACKUP_PERIOD:-5m}
-    BACKUP_RETENTION=${BACKUP_RETENTION:-24h}
+    EMBEDDED_BACKUPS=${EMBEDDED_BACKUPS:-true}
 
-    giddyup leader elect --proxy-tcp-port=2160 \
-        etcdwrapper rolling-backup \
-            --period=$BACKUP_PERIOD \
-            --retention=$BACKUP_RETENTION
+    if [ "$EMBEDDED_BACKUPS" == "true" ]; then
+        BACKUP_PERIOD=${BACKUP_PERIOD:-5m}
+        BACKUP_RETENTION=${BACKUP_RETENTION:-24h}
+
+        giddyup leader elect --proxy-tcp-port=2160 \
+            etcdwrapper rolling-backup \
+                --period=$BACKUP_PERIOD \
+                --retention=$BACKUP_RETENTION
+    fi
 }
 
 cleanup() {
