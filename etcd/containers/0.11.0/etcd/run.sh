@@ -110,6 +110,7 @@ standalone_node() {
     echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy 0s &
+    rolling_backup &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -123,6 +124,7 @@ standalone_node() {
 
 restart_node() {
     healthcheck_proxy &
+    rolling_backup &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -178,6 +180,7 @@ runtime_node() {
     echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy &
+    rolling_backup &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -214,6 +217,7 @@ recover_node() {
     echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy &
+    rolling_backup &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -281,17 +285,18 @@ disaster_node() {
 node() {
     mkdir -p $ETCD_DATA_DIR
 
-    if [ -d "$LEGACY_DATA_DIR/member" ]; then
+    if [ -d "$LEGACY_DATA_DIR/member" ] && [ ! -d "$LEGACY_DATA_DIR/data.current" ]; then
         echo "Upgrading FS structure from version <= etcd:v2.3.6-4 to etcd:v2.3.7-6"
         mkdir -p $LEGACY_DATA_DIR/data.current
-        mv $LEGACY_DATA_DIR/member $LEGACY_DATA_DIR/data.current/
+        rm -rf $LEGACY_DATA_DIR/data.current/*
+        cp -rf $LEGACY_DATA_DIR/member $LEGACY_DATA_DIR/data.current/
         node
 
-    elif [ -d "$LEGACY_DATA_DIR/data.current" ]; then
+    elif [ -d "$LEGACY_DATA_DIR/data.current" ] && [ ! -d "$ETCD_DATA_DIR/member" ]; then
         echo "Upgrading FS structure from version = rancher/etcd:v2.3.7-6 to current"
         mkdir -p $ETCD_DATA_DIR
-        mv $LEGACY_DATA_DIR/data.current/member $ETCD_DATA_DIR/
-        rm -rf $LEGACY_DATA_DIR/data.current
+        rm -rf $ETCD_DATA_DIR/*
+        cp -rf $LEGACY_DATA_DIR/data.current/member $ETCD_DATA_DIR/
         echo $IP > $ETCD_DATA_DIR/ip
         node
 

@@ -5,22 +5,8 @@ DR_FLAG=${DATA_DIR}/DR
 
 cd $DATA_DIR
 
-echo -e '\nWhich backup do you want to recover?\n'
-dirlist=$(ls)
-dirarray=($dirlist)
-
-i=1
-for dir in $dirlist; do
-  echo "$i) $dir";
-  i=$((i+1));
-done
-printf "Choose (${#dirarray[@]}):";
-
-read j
-
-selection=${dirarray[$((j-1))]}
-echo $selection > $DR_FLAG
-echo -e "\n'$selection' selected.\n\nTriggering disaster recovery...this will automatically restart the container."
+echo 'data.current' > $DR_FLAG
+echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
 
 sleep 2
 

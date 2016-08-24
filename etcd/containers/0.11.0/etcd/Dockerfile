@@ -15,7 +15,7 @@ RUN \
   mv /tmp/etcd-*/etcdctl /opt/rancher/etcdctl && \
   rm -rf /tmp/etcd-* && rm -f /etcd-*.tar.gz
 
-ADD etcdwrapper run.sh disaster /opt/rancher/
+ADD etcdwrapper run.sh disaster delete /opt/rancher/
 
 ENTRYPOINT ["/opt/rancher/run.sh"]
 CMD ["node"]
