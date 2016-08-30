@@ -6,6 +6,7 @@ IP=$(giddyup ip myip)
 META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
+SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
 HOST_UUID=$(wget -q -O - ${META_URL}/self/host/uuid)
 
 # be very careful that all state goes into the data container
@@ -83,7 +84,8 @@ rolling_backup() {
         giddyup leader elect --proxy-tcp-port=2160 \
             etcdwrapper rolling-backup \
                 --period=$BACKUP_PERIOD \
-                --retention=$BACKUP_RETENTION
+                --retention=$BACKUP_RETENTION \
+                --index=$SERVICE_INDEX
     fi
 }
 

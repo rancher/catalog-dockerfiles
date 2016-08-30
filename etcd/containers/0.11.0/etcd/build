@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 ACCT=${ACCT:-llparse}
-VERSION=${VERSION:-v2.3.7-8}
+VERSION=${VERSION:-v2.3.7-9}
 
 docker build -t etcdwrapper -f Dockerfile.wrapper .
 id=$(docker run -d --entrypoint=/bin/sh --name etcdwrapper etcdwrapper sleep 15)
