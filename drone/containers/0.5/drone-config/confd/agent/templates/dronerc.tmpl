@@ -1,0 +1,6 @@
+{{ if exists "/self/service/metadata/debug_mode" }}
+export DRONE_DEBUG='{{ getv "/self/service/metadata/debug_mode" }}'
+{{ end }}
+
+export DRONE_SERVER='http://drone:{{ getv "/self/service/metadata/drone_service_tcp_port" }}'
+{{ getv "/self/service/metadata/dronerc_contents" }}
