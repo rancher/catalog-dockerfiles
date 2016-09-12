@@ -12,12 +12,12 @@ To access the management interface, point a balancer on the 15672 port of this s
 ## Environment variables
 The following environment variables are passed to `confd` in order to set up RabbitMQ's  configuration file:
 
-* RABBITMQ_CLUSTER_PARTITION_HANDLING: RabbitMQ's cluster handling setting: default set to `autoheal`
-* RABBITMQ_NET_TICKTIME: adjusts the frequency of both tick messages and detection of failures: default set to `60`
-* RABBITMQ_ERLANG_COOKIE: cookie to allow nodes communication: default set to `defaultcookiepleasechange`
+* `RABBITMQ_CLUSTER_PARTITION_HANDLING`: RabbitMQ's cluster handling setting: default set to `autoheal`
+* `RABBITMQ_NET_TICKTIME`: adjusts the frequency of both tick messages and detection of failures: default set to `60`
+* `RABBITMQ_ERLANG_COOKIE`: cookie to allow nodes communication: default set to `defaultcookiepleasechange`
 
 Other two variables are available to fine-tune the cluster or test `confd` configuration:
 
-* ALTERNATE_CONF: overrides the whole default `confd` RabbitMQ template: default set to empty
-* CONFD_ARGS: additional `confd` args along with default `--backend rancher --prefix /2015-07-25`: default set to `--interval 5`
+* `ALTERNATE_CONF`: overrides the whole default `confd` RabbitMQ template: default set to empty
+* `CONFD_ARGS`: additional `confd` args along with default `--backend rancher --prefix /2015-07-25`: default set to `--interval 5`
 
