@@ -1,10 +1,17 @@
 #!/bin/bash
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
+META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
+
+# loop until metadata wakes up...
+STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
+while [ "$STACK_NAME" == "" ]; do
+  sleep 1
+  STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
+done
+
 SCALE=$(giddyup service scale etcd)
 IP=$(giddyup ip myip)
-META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
-STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
 CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
 SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
 HOST_UUID=$(wget -q -O - ${META_URL}/self/host/uuid)
