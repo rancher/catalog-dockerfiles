@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 if [ 'agent' == "$1" ] || [ 'server' == "$1" ]; then
   echo "$0: Starting drone in $1 mode..."

@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM busybox
 
 LABEL vendor="Rancher Labs, Inc." \
 	com.rancher.version="0.5" \
@@ -6,8 +6,6 @@ LABEL vendor="Rancher Labs, Inc." \
 
 ENV GIDDYUP_VERSION 'v0.14.0'
 ENV CONFD_VERSION '0.11.0'
-
-RUN apk add --update bash && rm -rf /var/cache/apk/*
 
 ADD ./confd/ /etc/confd/
 
