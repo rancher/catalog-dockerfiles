@@ -3,7 +3,7 @@ DIG=/opt/rancher/bin/dig
 
 function cluster_init {
 	sleep 10
-	MYIP=$(ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1 |  sed -n 2p)
+	MYIP=$(ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1 )
 	$DIG A $MONGO_SERVICE_NAME +short > ips.tmp
 	mongo --eval "printjson(rs.initiate())"
 	for member in $(cat ips.tmp); do
