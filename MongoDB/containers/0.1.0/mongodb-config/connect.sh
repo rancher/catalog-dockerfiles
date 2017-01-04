@@ -1,13 +1,17 @@
 #!/bin/bash
-DIG=/opt/rancher/bin/dig
+
+if [ -n "$CATTLE_SCRIPT_DEBUG" ]; then 
+	set -x
+fi
+
+GIDDYUP=/opt/rancher/bin/giddyup
 
 function cluster_init {
 	sleep 10
-	MYIP=$(ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1 |  sed -n 2p)
-	$DIG A $MONGO_SERVICE_NAME +short > ips.tmp
+	MYIP=$($GIDDYUP ip myip)
 	mongo --eval "printjson(rs.initiate())"
-	for member in $(cat ips.tmp); do
-		if [ $member != $MYIP ]; then
+	for member in $($GIDDYUP ip stringify --delimiter " "); do
+		if [ "$member" != "$MYIP" ]; then
 			mongo --eval "printjson(rs.add('$member:27017'))"
 			sleep 5
 		fi
@@ -16,9 +20,8 @@ function cluster_init {
 }
 
 function find_master {
-	$DIG A $MONGO_SERVICE_NAME +short > ips.tmp
-	for IP in $(cat ips.tmp); do
-		IS_MASTER=`mongo --host $IP --eval "printjson(db.isMaster())" | grep 'ismaster'`
+	for member in $($GIDDYUP ip stringify --delimiter " "); do
+		IS_MASTER=$(mongo --host $member --eval "printjson(db.isMaster())" | grep 'ismaster')
 		if echo $IS_MASTER | grep "true"; then
 			return 0
 		fi
@@ -27,10 +30,7 @@ function find_master {
 }
 # Script starts here
 # wait for mongo to start
-while [ `$DIG A $MONGO_SERVICE_NAME +short | wc -l` -lt 3 ]; do
-	echo 'mongo instances are less than 3.. waiting!'
-	sleep 5
-done
+$GIDDYUP service wait scale --timeout 120
 
 # Wait until all services are up
 sleep 10
