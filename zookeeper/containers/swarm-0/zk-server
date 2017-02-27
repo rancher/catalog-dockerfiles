@@ -1,0 +1,10 @@
+#!/bin/sh -e
+
+. zk-env
+
+java \
+  -Dzookeeper.root.logger=INFO,CONSOLE \
+  -cp "$CLASSPATH" \
+  $JVMFLAGS \
+  org.apache.zookeeper.server.quorum.QuorumPeerMain \
+    /zookeeper/conf/zoo.cfg

@@ -1,0 +1,9 @@
+#!/bin/sh -e
+
+. zk-env
+
+java \
+  -Dzookeeper.root.logger=CONSOLE,INFO \
+  -cp "$CLASSPATH" \
+  org.apache.zookeeper.ZooKeeperMain \
+    "$@"
