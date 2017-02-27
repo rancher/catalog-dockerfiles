@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -n "$CATTLE_SCRIPT_DEBUG" ]; then 
+	set -x
+fi
+
 # Check for lowest ID
 sleep 10
 /opt/rancher/bin/giddyup leader check
@@ -10,7 +14,6 @@ else
 
 # Run the scaling script
 /opt/rancher/bin/scaling.sh &
-
 # Start mongodb
 if [ $? -ne 0 ]
 then
@@ -33,7 +36,6 @@ if [ "$1" = 'mongod' ]; then
 
 	exec gosu mongodb "$@"
 fi
-
 exec "$@"
 
 fi
