@@ -1,2 +1,4 @@
 mongo-cluster:
   scale: 3
+mongo-config:
+  scale: 3
