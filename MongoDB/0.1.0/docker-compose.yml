@@ -2,8 +2,12 @@ mongo-cluster:
   restart: always
   environment:
     MONGO_SERVICE_NAME: mongo-cluster
+    MONGO_ROUTER_SERVICE_NAME: mongo-router
+    REPLSET_NAME: rs0
     CATTLE_SCRIPT_DEBUG:
   entrypoint: /opt/rancher/bin/entrypoint.sh
+  links:
+  - mongo-router:mongo-router
   command:
   - --replSet
   - "rs0"
@@ -31,3 +35,27 @@ mongo-datavolume:
     - /data/db
   entrypoint: /bin/true
   image: busybox
+mongo-config:
+  image: mongo:3.0
+  command:
+  - --configsvr
+  labels:
+    io.rancher.container.hostname_override: container_name
+mongo-router:
+  image: mongo:3.0
+  command:
+  - /opt/rancher/bin/router.sh
+  links:
+  - mongo-config:mongo-config
+  volumes_from:
+  - mongo-scripts
+  labels:
+    io.rancher.sidekicks: mongo-scripts 
+    io.rancher.container.hostname_override: container_name
+mongo-scripts:
+  restart: always
+  labels:
+    io.rancher.container.hostname_override: container_name
+    io.rancher.container.start_once: true
+  image: rancher/mongodb-conf:v0.2.0
+  entrypoint: /bin/true
