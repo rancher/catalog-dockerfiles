@@ -28,6 +28,18 @@ function find_master {
 	done
 	return 1
 }
+
+function router_init {
+	for member in $($GIDDYUP ip stringify --delimiter " "); do
+	  if [ -z "$SHARDS" ]; then
+	    SHARDS="$member"
+	  else
+	    SHARDS=$SHARDS",$member"
+	  fi
+	done
+	mongo --host $MONGO_ROUTER_SERVICE_NAME --eval "printjson(sh.addShard('$REPLSET_NAME/$SHARDS'))"
+}
+
 # Script starts here
 # wait for mongo to start
 $GIDDYUP service wait scale --timeout 120
@@ -41,3 +53,4 @@ else
 	echo 'Initiating the cluster!'
 	cluster_init
 fi
+router_init
