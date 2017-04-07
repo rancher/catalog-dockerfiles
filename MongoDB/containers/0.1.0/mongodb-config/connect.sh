@@ -30,13 +30,7 @@ function find_master {
 }
 
 function router_init {
-	for member in $($GIDDYUP ip stringify --delimiter " "); do
-	  if [ -z "$SHARDS" ]; then
-	    SHARDS="$member"
-	  else
-	    SHARDS=$SHARDS",$member"
-	  fi
-	done
+	SHARDS=$($GIDDYUP ip stringify)
 	mongo --host $MONGO_ROUTER_SERVICE_NAME --eval "printjson(sh.addShard('$REPLSET_NAME/$SHARDS'))"
 }
 
