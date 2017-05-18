@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -n "$CATTLE_SCRIPT_DEBUG" ]; then 
+if [ -n "$CATTLE_SCRIPT_DEBUG" ]; then
 	set -x
 fi
 
@@ -9,7 +9,8 @@ GIDDYUP=/opt/rancher/bin/giddyup
 function cluster_init {
 	sleep 10
 	MYIP=$($GIDDYUP ip myip)
-	mongo --eval "printjson(rs.initiate())"
+	CONFIG="{_id: \"$MONGO_REPLSET\",version: 1,members: [{ _id: 0, host : \"$MYIP:27017\" }]}"
+	mongo --eval "printjson(rs.initiate($CONFIG))"
 	for member in $($GIDDYUP ip stringify --delimiter " "); do
 		if [ "$member" != "$MYIP" ]; then
 			mongo --eval "printjson(rs.add('$member:27017'))"
