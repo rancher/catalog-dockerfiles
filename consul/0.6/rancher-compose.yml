@@ -1,0 +1,18 @@
+consul:
+  scale: 3
+  metadata:
+    ca.crt: |
+            text here
+    consul1.crt: |
+            text here
+    consul1.key: |
+            text here
+    consul2.crt: |
+            text here
+    consul2.key: |
+            text here
+    consul3.crt: |
+            text here
+    consul3.key: |
+            text here
+    enc.key: "text here"
