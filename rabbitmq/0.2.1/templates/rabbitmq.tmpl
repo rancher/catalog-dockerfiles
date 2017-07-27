@@ -1,0 +1,14 @@
+[
+  {rabbit, [
+    {cluster_partition_handling, {{if (getenv "RABBITMQ_CLUSTER_PARTITION_HANDLING")}} {{getenv "RABBITMQ_CLUSTER_PARTITION_HANDLING"}} {{else}} ignore {{end}} },
+    {cluster_nodes,
+        {[
+{{range $idx, $cnt := gets "/self/service/containers/*"}}{{ if (ne $idx 0) }},{{end}} 'rabbit@{{.Value}}'{{end}}
+         ], disc}     },
+  {loopback_users, []}
+  ]},
+  {kernel, [
+    {net_ticktime, {{if (getenv "RABBITMQ_NET_TICKTIME")}} {{getenv "RABBITMQ_NET_TICKTIME"}} {{else}} 60 {{end}} }
+  ]}
+].
+
