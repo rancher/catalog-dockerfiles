@@ -1,7 +1,7 @@
 #!/bin/bash
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
-META_URL="http://rancher-metadata.rancher.internal/2015-12-19"
+META_URL="http://169.254.169.250/2015-12-19"
 
 # loop until metadata wakes up...
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)
@@ -11,7 +11,12 @@ while [ "$STACK_NAME" == "" ]; do
 done
 
 SCALE=$(giddyup service scale etcd)
-IP=$(giddyup ip myip)
+
+while [ ! "$(echo $IP | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$')" ]; do
+    sleep 1
+    IP=$(wget -q -O - ${META_URL}/self/container/primary_ip)
+done
+
 CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
 SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
 HOST_UUID=$(wget -q -O - ${META_URL}/self/host/uuid)
@@ -150,12 +155,9 @@ restart_node() {
 
 # Scale Up
 runtime_node() {
-    # explicitly backup and wipe any old data dir
-    if [ -d "$ETCD_DATA_DIR/member" ]; then
-        rm -rf $ETCD_DATA_DIR/*
-        timestamp=$(date -R)
-        echo "$timestamp -> Scaling up. Deleted stale data" >> $DATA_DIR/events
-    fi
+    rm -rf $ETCD_DATA_DIR/*
+    timestamp=$(date -R)
+    echo "$timestamp -> Scaling up. Deleted stale data" >> $DATA_DIR/events
 
     # Get leader create_index
     # Wait for nodes with smaller service index to become healthy
@@ -207,6 +209,10 @@ runtime_node() {
 
 # recoverable failure scenario
 recover_node() {
+    rm -rf $ETCD_DATA_DIR/*
+    timestamp=$(date -R)
+    echo "$timestamp -> Recovering. Deleted stale data" >> $DATA_DIR/events
+
     # figure out which node we are replacing
     oldnode=$(etcdctl_quorum member list | grep "$NAME" | tr ':' '\n' | head -1)
 
@@ -315,14 +321,17 @@ node() {
 
     # if the DR flag is set, enter disaster recovery
     elif [ -f "$DR_FLAG" ]; then
+        echo Disaster Recovery
         disaster_node
 
     # if we have a data volume and it was served by a container with same IP
     elif [ -d "$ETCD_DATA_DIR/member" ] && [ "$(cat $ETCD_DATA_DIR/ip)" == "$IP" ]; then
+        echo Restarting Existing Node
         restart_node
 
     # if this member is already registered to the cluster but no data volume, we are recovering
     elif [ "$(etcdctl_one member list | grep $NAME)" ]; then
+        echo Recovering existing node data directory
         recover_node
 
     # if we are the first etcd to start
@@ -335,11 +344,13 @@ node() {
 
         # otherwise, start a new cluster
         else
+            echo Bootstrapping Cluster
             standalone_node
         fi
 
     # we are scaling up
     else
+        echo Adding Node
         runtime_node
     fi
 }

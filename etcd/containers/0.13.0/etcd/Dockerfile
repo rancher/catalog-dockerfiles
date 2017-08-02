@@ -6,7 +6,7 @@ ENV PATH $PATH:/opt/rancher
 RUN \
   apk add --update bash ca-certificates && \
   rm -rf /var/cache/apk/* && \
-  wget -q -O /opt/rancher/giddyup https://github.com/cloudnautique/giddyup/releases/download/v0.13.0/giddyup && \
+  wget -q -O /opt/rancher/giddyup https://github.com/rancher/giddyup/releases/download/v0.18.0/giddyup && \
   chmod +x /opt/rancher/giddyup
 
 RUN \
