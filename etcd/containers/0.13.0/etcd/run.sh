@@ -214,7 +214,7 @@ recover_node() {
     echo "$timestamp -> Recovering. Deleted stale data" >> $DATA_DIR/events
 
     # figure out which node we are replacing
-    oldnode=$(etcdctl_quorum member list | grep "$NAME" | tr ':' '\n' | head -1)
+    oldnode=$(etcdctl_quorum member list | grep "$IP" | tr ':' '\n' | head -1 | sed 's/\[unstarted\]//')
 
     # remove the old node
     etcdctl_quorum member remove $oldnode
