@@ -330,7 +330,7 @@ node() {
         restart_node
 
     # if this member is already registered to the cluster but no data volume, we are recovering
-    elif [ "$(etcdctl_one member list | grep $NAME)" ]; then
+    elif [ "$(etcdctl_one member list | grep $IP)" ]; then
         echo Recovering existing node data directory
         recover_node
 
