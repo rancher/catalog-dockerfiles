@@ -27,6 +27,7 @@ DATA_DIR=/pdata
 DR_FLAG=$DATA_DIR/DR
 export ETCD_DATA_DIR=$DATA_DIR/data.current
 export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
+export ETCDCTL_API=2
 
 # member name should be dashed-IP (piggyback off of retain_ip functionality)
 NAME=$(echo $IP | tr '.' '-')
@@ -326,6 +327,12 @@ node() {
 
     # if we have a data volume and it was served by a container with same IP
     elif [ -d "$ETCD_DATA_DIR/member" ] && [ "$(cat $ETCD_DATA_DIR/ip)" == "$IP" ]; then
+
+        # if the migration flag is set, upgrade to v3
+        if [ "$ETCD_MIGRATE" == "v3" ]; then
+            ETCDCTL_API=3 etcdctl migrate --data-dir=$ETCD_DATA_DIR
+        fi
+
         echo Restarting Existing Node
         restart_node
 
@@ -340,6 +347,7 @@ node() {
         # if we have an old data dir, trigger an automatic disaster recovery (tee-hee)
         if [ -d "$ETCD_DATA_DIR/member" ]; then
             echo data.current > $DR_FLAG
+            echo Found old cluster data. Triggering Disaster Recovery
             disaster_node
 
         # otherwise, start a new cluster
