@@ -1,11 +1,16 @@
 #!/bin/bash
 
-DATA_DIR=/pdata
-DR_FLAG=${DATA_DIR}/DR
+DATA_DIR=/data
+DR_FLAG=${DATA_DIR}/disaster
 
-cd $DATA_DIR
+ETCDCTL_API=3 etcdctl snapshot save $DATA_DIR/snapshot
 
-echo 'data.current' > $DR_FLAG
+if [ $? -ne 0 ] || [ ! -f $DATA_DIR/snapshot ]; then
+  echo "Error saving snapshot! Aborting."
+  exit 1
+fi
+
+touch $DR_FLAG
 echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
 
 sleep 5

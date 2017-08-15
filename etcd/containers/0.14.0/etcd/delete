@@ -2,7 +2,6 @@
 
 echo "Deleting persistent data..."
 
-rm -rf /pdata/*
 rm -rf /data/*
 
 PID=$(pidof etcd)
