@@ -17,8 +17,12 @@ while [ ! "$(echo $IP | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}
     IP=$(wget -q -O - ${META_URL}/self/container/primary_ip)
 done
 
+while [ ! "$(echo $SERVICE_INDEX | grep -E '^[0-9]+$')" ]; do
+    sleep 1
+    SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
+done
+
 CREATE_INDEX=$(wget -q -O - ${META_URL}/self/container/create_index)
-SERVICE_INDEX=$(wget -q -O - ${META_URL}/self/container/service_index)
 HOST_UUID=$(wget -q -O - ${META_URL}/self/host/uuid)
 
 # be very careful that all state goes into the data container
@@ -30,7 +34,7 @@ export ETCDCTL_ENDPOINT=http://etcd.${STACK_NAME}:2379
 export ETCDCTL_API=2
 
 # member name should be dashed-IP (piggyback off of retain_ip functionality)
-NAME=$(echo $IP | tr '.' '-')
+NAME="etcd-$SERVICE_INDEX"
 
 etcdctl_quorum() {
     target_ip=0
@@ -183,7 +187,7 @@ runtime_node() {
         fi
 
         cip=$(wget -q -O - ${META_URL}/self/service/containers/${container}/primary_ip)
-        cname=$(echo $cip | tr '.' '-')
+        cname="etcd-$(wget -q -O - ${META_URL}/self/service/containers/${container}/service_index)"
         if [ "$cluster" != "" ]; then
             cluster=${cluster},
         fi
@@ -215,7 +219,7 @@ recover_node() {
     echo "$timestamp -> Recovering. Deleted stale data" >> $DATA_DIR/events
 
     # figure out which node we are replacing
-    oldnode=$(etcdctl_quorum member list | grep "$IP" | tr ':' '\n' | head -1 | sed 's/\[unstarted\]//')
+    oldnode=$(etcdctl_quorum member list | grep "$NAME" | tr ':' '\n' | head -1 | sed 's/\[unstarted\]//')
 
     # remove the old node
     etcdctl_quorum member remove $oldnode
@@ -337,7 +341,7 @@ node() {
         restart_node
 
     # if this member is already registered to the cluster but no data volume, we are recovering
-    elif [ "$(etcdctl_one member list | grep $IP)" ]; then
+    elif [ "$(etcdctl_one member list | grep $NAME)" ]; then
         echo Recovering existing node data directory
         recover_node
 
