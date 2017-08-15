@@ -107,7 +107,7 @@ cleanup() {
 
     elif [ "$exitcode" == "143" ]; then
         echo "$timestamp -> Exit (143), likely received SIGTERM. No action taken" >> $DATA_DIR/events
-        
+
     else
         echo "$timestamp -> Exit ($exitcode), unknown. No action taken" >> $DATA_DIR/events
     fi
@@ -243,12 +243,16 @@ recover_node() {
 }
 
 disaster_node() {
+    local skip_hash_check
+    skip_hash_check="${1:-false}"
+
     rm -rf $ETCD_DATA_DIR
     ETCDCTL_API=3 etcdctl snapshot restore $DATA_DIR/snapshot \
         --name=${NAME} \
         --data-dir=$ETCD_DATA_DIR \
         --initial-advertise-peer-urls=http://${IP}:2380 \
-        --initial-cluster="$NAME=http://${IP}:2380"
+        --initial-cluster="$NAME=http://${IP}:2380" \
+        --skip-hash-check="$skip_hash_check"
 
     if [ $? -ne 0 ]; then
         echo Error restoring snapshot! Aborting.
@@ -287,10 +291,11 @@ node() {
     elif giddyup leader check; then
 
         # if we have an old data dir, trigger an automatic disaster recovery
-        if [ -d "$ETCD_DATA_DIR/member" ]; then
+        if [ -f "$ETCD_DATA_DIR/member/snap/db" ]; then
+            echo Found old cluster data. Attempting Disaster Recovery
+            cp $ETCD_DATA_DIR/member/snap/db $DATA_DIR/snapshot
             touch $DR_FLAG
-            echo Found old cluster data. Triggering Disaster Recovery
-            disaster_node
+            disaster_node true
 
         # otherwise, start a new cluster
         else
