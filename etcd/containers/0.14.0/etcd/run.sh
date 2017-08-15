@@ -105,6 +105,9 @@ cleanup() {
         rm -rf $ETCD_DATA_DIR
         echo "$timestamp -> Exit (2), log corrupted, truncated, lost. Deleted data" >> $DATA_DIR/events
 
+    elif [ "$exitcode" == "143" ]; then
+        echo "$timestamp -> Exit (143), likely received SIGTERM. No action taken" >> $DATA_DIR/events
+        
     else
         echo "$timestamp -> Exit ($exitcode), unknown. No action taken" >> $DATA_DIR/events
     fi
