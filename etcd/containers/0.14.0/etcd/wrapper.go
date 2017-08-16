@@ -17,8 +17,8 @@ import (
 )
 
 const (
-  dataDir = "/pdata/data.current"
-  backupBaseDir = "/data-backup"
+  dataDir = "/data/etcd"
+  backupBaseDir = "/backup"
   backupRetries = 4
 )
 
@@ -84,11 +84,6 @@ func RollingBackupCommand() cli.Command {
         Usage: "Retain backups for this time interval",
         Value: 24 * time.Hour,
       },
-      cli.IntFlag{
-        Name:  "index",
-        Usage: "Etcd container service index",
-        Value: 0,
-      },
       cli.BoolFlag{
         Name:  "debug",
         Usage: "Verbose logging information for debugging purposes",
@@ -134,7 +129,6 @@ func RollingBackupAction(c *cli.Context) error {
 
   backupPeriod := c.Duration("period")
   retentionPeriod := c.Duration("retention")
-  index := c.Int("index")
 
   log.WithFields(log.Fields{
     "period": backupPeriod,
@@ -145,17 +139,17 @@ func RollingBackupAction(c *cli.Context) error {
   for {
     select {
     case backupTime := <-backupTicker.C:
-      CreateBackup(backupTime, index)
+      CreateBackup(backupTime)
       DeleteBackups(backupTime, retentionPeriod)
     }
   }
   return nil
 }
 
-func CreateBackup(t time.Time, index int) {
+func CreateBackup(t time.Time) {
   var err error
   failureInterval := 15 * time.Second
-  backupName := fmt.Sprintf("%s_etcd_%d", t.Format(time.RFC3339), index)
+  backupName := fmt.Sprintf("%s_etcd", t.Format(time.RFC3339))
   tempDir := fmt.Sprintf("/tmp/%s", backupName)
   backupDir := fmt.Sprintf("%s/%s", backupBaseDir, backupName)
 

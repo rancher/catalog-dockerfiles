@@ -77,21 +77,6 @@ healthcheck_proxy() {
     etcdwrapper healthcheck-proxy --port=:2378 --wait=$WAIT --debug=false
 }
 
-rolling_backup() {
-    EMBEDDED_BACKUPS=${EMBEDDED_BACKUPS:-true}
-
-    if [ "$EMBEDDED_BACKUPS" == "true" ]; then
-        BACKUP_PERIOD=${BACKUP_PERIOD:-5m}
-        BACKUP_RETENTION=${BACKUP_RETENTION:-24h}
-
-        giddyup leader elect --proxy-tcp-port=2160 \
-            etcdwrapper rolling-backup \
-                --period=$BACKUP_PERIOD \
-                --retention=$BACKUP_RETENTION \
-                --index=$SERVICE_INDEX
-    fi
-}
-
 cleanup() {
     exitcode=$1
     timestamp=$(date -R)
@@ -122,7 +107,6 @@ standalone_node() {
     echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy 0s &
-    rolling_backup &
     etcd $@ \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -136,7 +120,6 @@ standalone_node() {
 
 restart_node() {
     healthcheck_proxy &
-    rolling_backup &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -189,7 +172,6 @@ runtime_node() {
     echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy &
-    rolling_backup &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
@@ -230,7 +212,6 @@ recover_node() {
     echo $IP > $ETCD_DATA_DIR/ip
 
     healthcheck_proxy &
-    rolling_backup &
     etcd \
         --name ${NAME} \
         --listen-client-urls http://0.0.0.0:2379 \
