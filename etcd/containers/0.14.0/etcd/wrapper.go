@@ -80,13 +80,13 @@ func RollingBackupCommand() cli.Command {
 		Action: RollingBackupAction,
 		Flags: []cli.Flag{
 			cli.DurationFlag{
-				Name:  "period",
-				Usage: "Perform backups at this time interval",
+				Name:  "creation",
+				Usage: "Create backups after this time interval",
 				Value: 5 * time.Minute,
 			},
 			cli.DurationFlag{
 				Name:  "retention",
-				Usage: "Retain backups for this time interval",
+				Usage: "Retain backups within this time interval",
 				Value: 24 * time.Hour,
 			},
 			cli.BoolFlag{
@@ -132,15 +132,15 @@ func ProxyAction(c *cli.Context) error {
 func RollingBackupAction(c *cli.Context) error {
 	SetLoggingLevel(c.Bool("debug"))
 
-	backupPeriod := c.Duration("period")
+	creationPeriod := c.Duration("creation")
 	retentionPeriod := c.Duration("retention")
 
 	log.WithFields(log.Fields{
-		"period":    backupPeriod,
+		"creation":  creationPeriod,
 		"retention": retentionPeriod,
 	}).Info("Initializing Rolling Backups")
 
-	backupTicker := time.NewTicker(backupPeriod)
+	backupTicker := time.NewTicker(creationPeriod)
 	for {
 		select {
 		case backupTime := <-backupTicker.C:

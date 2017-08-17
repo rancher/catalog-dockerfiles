@@ -271,8 +271,15 @@ node() {
     # if we are the first etcd to start
     elif giddyup leader check; then
 
+        # if we have a backup dir with at one or more snapshots, trigger an autormatic disaster recovery
+        if [ -d "/backup" ] && [ "$(ls /backup | wc -l)" != "0" ]; then
+            echo Found a backup. Attempting Disaster Recovery
+            cp "/backup/$(ls /backup | tail -1)" $DATA_DIR/snapshot
+            touch $DR_FLAG
+            disaster_node true
+
         # if we have an old data dir, trigger an automatic disaster recovery
-        if [ -f "$ETCD_DATA_DIR/member/snap/db" ]; then
+        elif [ -f "$ETCD_DATA_DIR/member/snap/db" ]; then
             echo Found old cluster data. Attempting Disaster Recovery
             cp $ETCD_DATA_DIR/member/snap/db $DATA_DIR/snapshot
             touch $DR_FLAG
