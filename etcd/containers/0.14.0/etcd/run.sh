@@ -1,7 +1,8 @@
 #!/bin/bash
 if [ "$RANCHER_DEBUG" == "true" ]; then set -x; fi
 
-META_URL="http://169.254.169.250/2015-12-19"
+MD=${RANCHER_METADATA_IP:-169.254.169.250}
+META_URL="http://${MD}/2015-12-19"
 
 # loop until metadata wakes up...
 STACK_NAME=$(wget -q -O - ${META_URL}/self/stack/name)

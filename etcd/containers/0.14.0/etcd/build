@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 ACCT=${ACCT:-llparse}
-VERSION=${VERSION:-v3.0.17}
+VERSION=${VERSION:-v3.0.17-2}
 
 gofmt -w -d *.go
 docker build -t etcdwrapper -f Dockerfile.wrapper .

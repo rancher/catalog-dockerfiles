@@ -165,7 +165,7 @@ func CreateBackup(t time.Time) {
 		// FIXME! either get container ips (ideal) or service/stack name (dns)
 		// curl -H 'Accept: application/json' http://169.254.169.250/2016-07-29/self/stack/etcd/services/etcd/containers | jq -r .[].primary_ip
 		// only use .[].state == 'running'
-		cmd := exec.Command("etcdctl", "snapshot", "save", "--endpoints", "etcd.etcd:2379", backupDir)
+		cmd := exec.Command("etcdctl", "snapshot", "save", "--endpoints", "etcd:2379", backupDir)
 
 		startTime := time.Now()
 		data, err := cmd.CombinedOutput()
