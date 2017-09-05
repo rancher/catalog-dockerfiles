@@ -1,0 +1,23 @@
+#!/bin/bash
+
+DATA_DIR=/data
+DR_FLAG=${DATA_DIR}/disaster
+
+ETCDCTL_API=3 etcdctl snapshot save $DATA_DIR/snapshot
+
+if [ $? -ne 0 ] || [ ! -f $DATA_DIR/snapshot ]; then
+  echo "Error saving snapshot! Aborting."
+  exit 1
+fi
+
+touch $DR_FLAG
+echo -e "Disaster flag set.\n\nTriggering disaster recovery...this will automatically restart the container."
+
+sleep 5
+
+# Continuously send SIGTERM
+PID=$(pidof etcd)
+while kill -0 $PID &> /dev/null; do
+  kill $PID
+  sleep 1
+done

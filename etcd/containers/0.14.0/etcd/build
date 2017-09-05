@@ -1,0 +1,16 @@
+#!/bin/bash -e
+
+ACCT=${ACCT:-llparse}
+VERSION=${VERSION:-v3.0.17-2}
+
+gofmt -w -d *.go
+docker build -t etcdwrapper -f Dockerfile.wrapper .
+id=$(docker run -d --entrypoint=/bin/sh --name etcdwrapper etcdwrapper sleep 15)
+docker cp etcdwrapper:/go/src/etcdwrapper/etcdwrapper .
+docker rm -f $id
+
+docker build -t $ACCT/etcd:$VERSION .
+docker push $ACCT/etcd:$VERSION
+
+rm -f etcdwrapper
+
